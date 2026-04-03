@@ -34,12 +34,11 @@ data
     └── t_his15_1_thre0.500_t_pred60_thre0.010_index_filterd.npz
 ```
 
-### 3. Pretrained Models
-
-We provide the pretrained models for all three datasets [here](https://drive.google.com/drive/folders/16iPASM7pnYEixBXaVFnp2pGbjgg-Ppxq?usp=sharing). Download all files into the `./checkpoints` directory and the final `./checkpoints` directory structure is shown below:
 
 
-## 🔎 Evaluation
+
+### 🔎 Evaluation
+```
 Evaluate on Human3.6M:
 
 
