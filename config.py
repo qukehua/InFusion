@@ -19,6 +19,8 @@ def update_config(cfg, args_dict):
         - save path dir
     """
     for k, v in args_dict.items():
+        if v is None and hasattr(cfg, k):
+            continue
         setattr(cfg, k, v)
 
     dtype = torch.float32
@@ -30,8 +32,9 @@ def update_config(cfg, args_dict):
     cfg.idct_m_all = cfg.idct_m.float().to(cfg.device)
 
     index = get_log_dir_index(cfg.base_dir)
+    exp_base_name = getattr(cfg, 'exp_name', None) or args_dict['cfg']
     if args_dict['mode'] == ('train' or 'pred' or 'eval'):
-        cfg.cfg_dir = '%s/%s' % (cfg.base_dir, args_dict['cfg'] + index)
+        cfg.cfg_dir = '%s/%s' % (cfg.base_dir, exp_base_name + index)
     else:
         cfg.cfg_dir = '%s/%s' % (cfg.base_dir, args_dict['mode'] + index)
     os.makedirs(cfg.cfg_dir, exist_ok=True)
@@ -65,6 +68,7 @@ class Config:
 
         # common
         self.dataset = cfg.get('dataset', 'h36m')
+        self.exp_name = cfg.get('exp_name', None)
         self.batch_size = cfg['batch_size']
         self.normalize_data = cfg.get('normalize_data', False)
         self.t_his = cfg['t_his']
@@ -74,6 +78,9 @@ class Config:
         self.num_data_sample = cfg['num_data_sample']
         self.num_val_data_sample = cfg['num_val_data_sample']
         self.lr = cfg['lr']
+        self.milestone = cfg.get('milestone', [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400])
+        self.gamma = cfg.get('gamma', 0.8)
+        self.save_model_interval = cfg.get('save_model_interval', 100)
 
         self.n_pre = cfg['n_pre']
         self.multimodal_path = cfg.get('multimodal_path', None)

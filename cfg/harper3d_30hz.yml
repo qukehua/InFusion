@@ -3,7 +3,9 @@ dataset: 'harper3d'
 t_his: 25
 t_pred: 100
 batch_size: 64
-num_epoch: 1501
+num_epoch: 500
+milestone: [100,200,300,400,500]
+save_model_interval: 100
 num_data_sample: 50000
 num_val_data_sample: 5000
 lr: 3.e-4

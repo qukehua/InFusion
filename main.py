@@ -24,14 +24,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--cfg', default='h36m', help='h36m or humaneva or amass or HARPER')
+    parser.add_argument('--exp_name', type=str, default=None, help='custom experiment folder name')
     parser.add_argument('--mode', default='train', help='train / eval / pred')
     parser.add_argument('--iter', type=int, default=0)
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--device', type=str, default=torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu'))
     parser.add_argument('--multimodal_threshold', type=float, default=0.5)
-    parser.add_argument('--milestone', type=list, default=[100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400])
+    parser.add_argument('--milestone', type=list, default=None)
     parser.add_argument('--gamma', type=float, default=0.8)
-    parser.add_argument('--save_model_interval', type=int, default=100)
+    parser.add_argument('--save_model_interval', type=int, default=None)
     parser.add_argument('--ckpt', type=str, default='./checkpoints/h36m_ckpt.pt')
     parser.add_argument('--ema', type=bool, default=True)
     parser.add_argument('--vis_col', type=int, default=10)
@@ -84,7 +85,7 @@ if __name__ == '__main__':
             'dropout': cfg.dropout,
             'seed': args.seed,
         }
-        run_name = args.wandb_name if args.wandb_name else f"{cfg.dataset}_{args.seed}"
+        run_name = args.wandb_name if args.wandb_name else (cfg.exp_name if cfg.exp_name else f"{cfg.dataset}_{args.seed}")
         wandb.init(
             project=args.wandb_project,
             name=run_name,

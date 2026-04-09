@@ -1,20 +1,10 @@
-import torch
-import torch.nn.functional as F
-from torch import layer_norm, nn
-import numpy as np
 import math
-from utils import *
+import torch
+from torch import nn
 
 
 def timestep_embedding(timesteps, dim, max_period=10000):
-    """
-    Create sinusoidal timestep embeddings.
-    :param timesteps: a 1-D Tensor of N indices, one per batch element.
-                      These may be fractional.
-    :param dim: the dimension of the output.
-    :param max_period: controls the minimum frequency of the embeddings.
-    :return: an [N x dim] Tensor of positional embeddings.
-    """
+    """Create sinusoidal timestep embeddings."""
     half = dim // 2
     freqs = torch.exp(
         -math.log(max_period) * torch.arange(start=0, end=half, dtype=torch.float32) / half
@@ -26,111 +16,98 @@ def timestep_embedding(timesteps, dim, max_period=10000):
     return embedding
 
 
-def zero_module(module):
-    """
-    Zero out the parameters of a module and return it.
-    """
-    for p in module.parameters():
-        p.detach().zero_()
-    return module
+def modulate(x, shift, scale):
+    return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
 
 
-class SELayer(nn.Module):
-    def __init__(self, c, r=4, use_max_pooling=False):
+def get_1d_sincos_pos_embed(length, dim):
+    position = torch.arange(length, dtype=torch.float32).unsqueeze(1)
+    div_term = torch.exp(
+        torch.arange(0, dim, 2, dtype=torch.float32) * (-math.log(10000.0) / dim)
+    )
+    pos_embed = torch.zeros(length, dim, dtype=torch.float32)
+    pos_embed[:, 0::2] = torch.sin(position * div_term)
+    pos_embed[:, 1::2] = torch.cos(position * div_term)
+    return pos_embed.unsqueeze(0)
+
+
+class Attention(nn.Module):
+    def __init__(self, dim, num_heads=8, dropout=0.0):
         super().__init__()
-        self.squeeze = nn.AdaptiveAvgPool1d(1) if not use_max_pooling else nn.AdaptiveMaxPool1d(1)
-        self.excitation = nn.Sequential(
-            nn.Linear(c, c // r, bias=False),
-            nn.ReLU(inplace=True),
-            nn.Linear(c // r, c, bias=False),
-            nn.Sigmoid()
+        self.num_heads = num_heads
+        self.head_dim = dim // num_heads
+        self.scale = self.head_dim ** -0.5
+        self.qkv = nn.Linear(dim, dim * 3, bias=True)
+        self.attn_drop = nn.Dropout(dropout)
+        self.proj = nn.Linear(dim, dim)
+        self.proj_drop = nn.Dropout(dropout)
+
+    def forward(self, x):
+        bsz, seq_len, dim = x.shape
+        qkv = self.qkv(x).reshape(bsz, seq_len, 3, self.num_heads, self.head_dim)
+        qkv = qkv.permute(2, 0, 3, 1, 4)
+        q, k, v = qkv[0], qkv[1], qkv[2]
+
+        attn = (q @ k.transpose(-2, -1)) * self.scale
+        attn = attn.softmax(dim=-1)
+        attn = self.attn_drop(attn)
+
+        x = (attn @ v).transpose(1, 2).reshape(bsz, seq_len, dim)
+        x = self.proj(x)
+        x = self.proj_drop(x)
+        return x
+
+
+class Mlp(nn.Module):
+    def __init__(self, in_features, hidden_features, dropout=0.0):
+        super().__init__()
+        self.fc1 = nn.Linear(in_features, hidden_features)
+        self.act = nn.GELU()
+        self.fc2 = nn.Linear(hidden_features, in_features)
+        self.drop = nn.Dropout(dropout)
+
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.act(x)
+        x = self.drop(x)
+        x = self.fc2(x)
+        x = self.drop(x)
+        return x
+
+
+class DiTBlock(nn.Module):
+    def __init__(self, hidden_size, num_heads, mlp_ratio=4.0, dropout=0.0):
+        super().__init__()
+        self.norm1 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        self.attn = Attention(hidden_size, num_heads=num_heads, dropout=dropout)
+        self.norm2 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        self.mlp = Mlp(hidden_size, int(hidden_size * mlp_ratio), dropout=dropout)
+        self.adaLN_modulation = nn.Sequential(
+            nn.SiLU(),
+            nn.Linear(hidden_size, 6 * hidden_size, bias=True)
         )
 
-    def forward(self, x):
-        bs, s, h = x.shape
-        y = self.squeeze(x).view(bs, s)
-        y = self.excitation(y).view(bs, s, 1)
-        return x * y.expand_as(x)
-
-
-class FFN(nn.Module):
-
-    def __init__(self, latent_dim, ffn_dim, dropout):
-        super().__init__()
-        self.linear1 = nn.Linear(latent_dim, ffn_dim)
-        self.linear2 = zero_module(nn.Linear(ffn_dim, latent_dim))
-        self.activation = nn.GELU()
-        self.dropout = nn.Dropout(dropout)
-        self.norm = nn.LayerNorm(latent_dim)
-
-    def forward(self, x):
-        y = self.linear2(self.dropout(self.activation(self.linear1(self.norm(x)))))
-        y = x + y
-        return y
-
-
-class TemporalSelfAttention(nn.Module):
-
-    def __init__(self, latent_dim, num_head, dropout):
-        super().__init__()
-        self.num_head = num_head
-        self.norm = nn.LayerNorm(latent_dim)
-        self.query = nn.Linear(latent_dim, latent_dim, bias=False)
-        self.key = nn.Linear(latent_dim, latent_dim, bias=False)
-        self.value = nn.Linear(latent_dim, latent_dim, bias=False)
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, x):
-        """
-        x: B, T, D
-        """
-        B, T, D = x.shape
-        H = self.num_head
-
-        # B, T, 1, D
-        query = self.query(self.norm(x)).unsqueeze(2)
-        # B, 1, T, D
-        key = self.key(self.norm(x)).unsqueeze(1)
-        query = query.view(B, T, H, -1)
-        key = key.view(B, T, H, -1)
-        # B, T, T, H
-        attention = torch.einsum('bnhd,bmhd->bnmh', query, key) / math.sqrt(D // H)
-        weight = self.dropout(F.softmax(attention, dim=2))
-        value = self.value(self.norm(x)).view(B, T, H, -1)
-        y = torch.einsum('bnmh,bmhd->bnhd', weight, value).reshape(B, T, D)
-
-        y = x + y
-        return y
-
-    
-class TemporalDiffusionTransformerDecoderLayer(nn.Module):
-
-    def __init__(self,
-                 latent_dim=32,
-                 time_embed_dim=128,
-                 ffn_dim=256,
-                 num_head=4,
-                 dropout=0.5,
-                 skip=False,
-                 se_dim=21,
-                 se_r=4
-                 ):
-        super().__init__()
-        if skip:
-            self.skip_linear = nn.Linear(2 * latent_dim, latent_dim)
-
-        self.sa_block = TemporalSelfAttention(
-            latent_dim, num_head, dropout)
-        self.ffn = FFN(latent_dim, ffn_dim, dropout)
-        self.se = SELayer(se_dim, r=se_r, use_max_pooling=False)
-
-    def forward(self, x, skip=None):
-        if skip is not None:
-            x = self.skip_linear(torch.cat([x, skip], dim=-1))
-        x = x + self.se(x)
-        x = self.sa_block(x)
-        x = self.ffn(x)
+    def forward(self, x, c):
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=1)
+        x = x + gate_msa.unsqueeze(1) * self.attn(modulate(self.norm1(x), shift_msa, scale_msa))
+        x = x + gate_mlp.unsqueeze(1) * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
         return x
+
+
+class FinalLayer(nn.Module):
+    def __init__(self, hidden_size, out_size):
+        super().__init__()
+        self.norm_final = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        self.adaLN_modulation = nn.Sequential(
+            nn.SiLU(),
+            nn.Linear(hidden_size, 2 * hidden_size, bias=True)
+        )
+        self.out_proj = nn.Linear(hidden_size, out_size, bias=True)
+
+    def forward(self, x, c):
+        shift, scale = self.adaLN_modulation(c).chunk(2, dim=1)
+        x = modulate(self.norm_final(x), shift, scale)
+        return self.out_proj(x)
 
 
 class MotionTransformer(nn.Module):
@@ -146,90 +123,74 @@ class MotionTransformer(nn.Module):
                  activation="gelu",
                  **kargs):
         super().__init__()
-
+        del activation  # kept for API compatibility
         self.num_frames = num_frames
         self.latent_dim = latent_dim
         self.num_layers = num_layers
         self.num_heads = num_heads
         self.ff_size = ff_size
         self.dropout = dropout
-        self.activation = activation
         self.input_feats = input_feats
         self.cond_feats = input_feats if cond_feats is None else cond_feats
-        self.time_embed_dim = latent_dim
-        self.sequence_embedding = nn.Parameter(torch.randn(num_frames + 2, latent_dim))
-        # SE blocks operate along token dimension (time + 1 cond token).
-        # Keep it dynamic so different n_pre values (e.g., 20, 50, ...) all work.
-        self.se_dim = num_frames + 1
 
-        # Input Embedding
-        self.joint_embed = nn.Linear(self.input_feats, self.latent_dim)
-        
-        self.cond_embed = nn.Linear(self.cond_feats * self.num_frames, self.time_embed_dim)
-        
-        self.time_embed = nn.Sequential(
-            nn.Linear(self.latent_dim, self.time_embed_dim),
+        self.x_embedder = nn.Linear(self.input_feats, latent_dim)
+        self.t_embedder = nn.Sequential(
+            nn.Linear(latent_dim, latent_dim),
             nn.SiLU(),
-            nn.Linear(self.time_embed_dim, self.time_embed_dim),
+            nn.Linear(latent_dim, latent_dim),
         )
+        self.c_embedder = nn.Sequential(
+            nn.Linear(self.cond_feats * self.num_frames, latent_dim),
+            nn.SiLU(),
+            nn.Linear(latent_dim, latent_dim),
+        )
+        self.pos_embed = nn.Parameter(torch.zeros(1, num_frames, latent_dim), requires_grad=False)
+        self.blocks = nn.ModuleList([
+            DiTBlock(latent_dim, num_heads, mlp_ratio=ff_size / latent_dim, dropout=dropout)
+            for _ in range(num_layers)
+        ])
+        self.final_layer = FinalLayer(latent_dim, self.input_feats)
 
-        self.in_blocks = nn.ModuleList([
-            TemporalDiffusionTransformerDecoderLayer(
-                    latent_dim=latent_dim,
-                    time_embed_dim=self.time_embed_dim,
-                    ffn_dim=ff_size,
-                    num_head=num_heads,
-                    dropout=dropout,
-                    se_dim=self.se_dim,)
-            for i in range(self.num_layers // 2)])
+        self.initialize_weights()
 
-        self.mid_block = TemporalDiffusionTransformerDecoderLayer(
-                                latent_dim=latent_dim,
-                                time_embed_dim=self.time_embed_dim,
-                                ffn_dim=ff_size,
-                                num_head=num_heads,
-                                dropout=dropout,
-                                se_dim=self.se_dim,)
+    def initialize_weights(self):
+        nn.init.xavier_uniform_(self.x_embedder.weight)
+        nn.init.zeros_(self.x_embedder.bias)
 
-        self.out_blocks = nn.ModuleList([
-            TemporalDiffusionTransformerDecoderLayer(
-                    latent_dim=latent_dim,
-                    time_embed_dim=self.time_embed_dim,
-                    ffn_dim=ff_size,
-                    num_head=num_heads,
-                    dropout=dropout,
-                    skip=True,
-                    se_dim=self.se_dim)
-            for i in range(self.num_layers // 2)])
-                
-        self.out = zero_module(nn.Linear(self.latent_dim, self.input_feats))
+        pos_embed = get_1d_sincos_pos_embed(self.num_frames, self.latent_dim)
+        self.pos_embed.data.copy_(pos_embed)
+
+        for embedder in (self.t_embedder, self.c_embedder):
+            nn.init.normal_(embedder[0].weight, std=0.02)
+            nn.init.zeros_(embedder[0].bias)
+            nn.init.normal_(embedder[2].weight, std=0.02)
+            nn.init.zeros_(embedder[2].bias)
+
+        for block in self.blocks:
+            nn.init.zeros_(block.adaLN_modulation[1].weight)
+            nn.init.zeros_(block.adaLN_modulation[1].bias)
+
+        nn.init.zeros_(self.final_layer.adaLN_modulation[1].weight)
+        nn.init.zeros_(self.final_layer.adaLN_modulation[1].bias)
+        nn.init.zeros_(self.final_layer.out_proj.weight)
+        nn.init.zeros_(self.final_layer.out_proj.bias)
 
     def forward(self, x, timesteps, mod=None):
         """
-        x: B, T, D
+        x: [B, T, D]
+        mod: [B, T, D_cond] or None
         """
-        B, T = x.shape[0], x.shape[1]
+        bsz, seq_len, _ = x.shape
+        if seq_len > self.num_frames:
+            raise ValueError(f"Sequence length {seq_len} exceeds configured num_frames {self.num_frames}")
 
-        emb = self.time_embed(timestep_embedding(timesteps, self.latent_dim)).unsqueeze(1)
+        x = self.x_embedder(x) + self.pos_embed[:, :seq_len]
+        c = self.t_embedder(timestep_embedding(timesteps, self.latent_dim))
 
         if mod is not None:
-            mod_proj = self.cond_embed(mod.reshape(B, -1)).unsqueeze(1)
-            emb = emb + mod_proj
+            c = c + self.c_embedder(mod.reshape(bsz, -1))
 
-        h = self.joint_embed(x)
-        h = torch.cat([emb, h], dim=1)
-        h = h + self.sequence_embedding.unsqueeze(0)[:, :T+1, :]
+        for block in self.blocks:
+            x = block(x, c)
 
-        skips = []
-            
-        for blk in self.in_blocks:
-            h = blk(h)
-            skips.append(h)
-        
-        h = self.mid_block(h)
-
-        for blk in self.out_blocks:
-            h = blk(h, skips.pop())
-
-        output = self.out(h[:, 1:, :]).view(B, T, -1).contiguous()
-        return output
+        return self.final_layer(x, c)
