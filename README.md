@@ -35,6 +35,13 @@ data
 ```
 
 
+## ⏳ Training
+
+Training on HARPER:
+
+python main.py --cfg harper3d_30hz --mode train 
+
+python main.py --cfg harper3d_120hz --mode train 
 
 
 ### 🔎 Evaluation
@@ -46,16 +53,6 @@ python main.py --cfg harper3d_30hz --mode eval --ckpt ./results/harper3d_30hz/mo
 python main.py --cfg harper3d_120hz --mode eval --ckpt ./results/harper3d_120hz/models/best_ema.pt
 
 
-
-
-
-## ⏳ Training
-
-Training on HARPER:
-
-python main.py --cfg harper3d_30hz --mode train 
-
-python main.py --cfg harper3d_120hz --mode train 
 
 
 ## 🎥 Visualization
