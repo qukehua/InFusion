@@ -8,8 +8,8 @@ milestone: [100,200,300,400,500]
 save_model_interval: 100
 num_data_sample: 50000
 num_val_data_sample: 5000
-# lr: 3.e-4
-lr: 2.e-4
+lr: 3.e-4  #original
+# lr: 2.e-4
 n_pre: 20
 # Set to 'auto' to auto-construct based on fps
 multimodal_path: '/data3/user/qkh/DATASET/TransFusion/HARPER/t_his25_30hz_thre0.500_t_pred100_thre0.100_filtered.npz'
@@ -18,14 +18,14 @@ padding: 'LastFrame'
 Complete: True
 noise_steps: 1000
 ddim_timesteps: 100
-scheduler: 'Cosine'
+scheduler: 'Cosine'  # 'Cosine' 'Linear' 'Sqrt' 'Sigmoid' 'Logarithmic'
 num_layers: 9
 num_heads: 8
 latent_dims: 512
-# dropout: 0.2
-dropout: 0.1
-# mod_train: 0.8
-mod_train: 0.9
+dropout: 0.2     #original
+# dropout: 0.1
+mod_train: 0.8   #original
+# mod_train: 0.9   
 mod_test: 1.0
 dct_norm_enable: False
 disable_tensorboard: True

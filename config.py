@@ -3,14 +3,6 @@ import os
 from utils import util, torch, generate_pad
 
 
-def get_log_dir_index(out_dir):
-    dirs = [x[0] for x in os.listdir(out_dir)]
-    if '.' in dirs:  # minor change for .ipynb
-        dirs.remove('.')
-    log_dir_index = '_' + str(len(dirs))
-
-    return log_dir_index
-
 def update_config(cfg, args_dict):
     """
     update some configuration related to args
@@ -31,12 +23,11 @@ def update_config(cfg, args_dict):
     cfg.dct_m_all = cfg.dct_m.float().to(cfg.device)
     cfg.idct_m_all = cfg.idct_m.float().to(cfg.device)
 
-    index = get_log_dir_index(cfg.base_dir)
     exp_base_name = getattr(cfg, 'exp_name', None) or args_dict['cfg']
     if args_dict['mode'] == ('train' or 'pred' or 'eval'):
-        cfg.cfg_dir = '%s/%s' % (cfg.base_dir, exp_base_name + index)
+        cfg.cfg_dir = '%s/%s' % (cfg.base_dir, exp_base_name)
     else:
-        cfg.cfg_dir = '%s/%s' % (cfg.base_dir, args_dict['mode'] + index)
+        cfg.cfg_dir = '%s/%s' % (cfg.base_dir, args_dict['mode'])
     os.makedirs(cfg.cfg_dir, exist_ok=True)
     cfg.model_dir = '%s/models' % cfg.cfg_dir
     cfg.result_dir = '%s/results' % cfg.cfg_dir

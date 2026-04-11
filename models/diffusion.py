@@ -44,6 +44,17 @@ def sigmoid_beta_schedule(timesteps, start=-3., end=3., tau=0.7, clamp_min=1e-5)
     return torch.clip(betas, 0, 0.999)
 
 
+def logarithmic_beta_schedule(timesteps, start=1e-4, end=2e-2):
+    """
+    Logarithmic schedule.
+
+    Interpolates beta values uniformly in log-space so early diffusion steps grow
+    more gently and later steps allocate proportionally more noise.
+    """
+    betas = torch.logspace(math.log10(start), math.log10(end), timesteps)
+    return torch.clip(betas, 0, 0.999)
+
+
 class Diffusion:
     def __init__(self, noise_steps=1000,
                  beta_start=1e-4,
@@ -66,7 +77,7 @@ class Diffusion:
         self.motion_size = motion_size
         self.device = device
 
-        self.scheduler = scheduler  # 'Cosine', 'Sqrt', 'Linear', 'Sigmoid'
+        self.scheduler = scheduler  # 'Cosine', 'Sqrt', 'Linear', 'Sigmoid', 'Logarithmic'
         self.beta = self.prepare_noise_schedule().to(device)
         self.alpha = 1. - self.beta
         self.alpha_hat = torch.cumprod(self.alpha, dim=0)
@@ -95,6 +106,8 @@ class Diffusion:
             return sqrt_beta_schedule(self.noise_steps)
         elif self.scheduler == 'Sigmoid':
             return sigmoid_beta_schedule(self.noise_steps)
+        elif self.scheduler == 'Logarithmic':
+            return logarithmic_beta_schedule(self.noise_steps, self.beta_start, self.beta_end)
         else:
             raise NotImplementedError(f"unknown scheduler: {self.scheduler}")
 
