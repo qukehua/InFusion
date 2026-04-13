@@ -35,9 +35,9 @@ data
 
 Training on HARPER:
 
-python main.py --cfg harper3d_30hz --mode train --exp_name harper3d_30hz
+CUDA_VISIBLE_DEVICES=0 python main.py --cfg harper3d_30hz --mode train --exp_name harper3d_30hz
 
-python main.py --cfg harper3d_120hz --mode train --exp_name harper3d_120hz
+CUDA_VISIBLE_DEVICES=0 python main.py --cfg harper3d_120hz --mode train --exp_name harper3d_120hz
 
 
 ### 🔎 Evaluation
