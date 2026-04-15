@@ -6,6 +6,7 @@ from tqdm import tqdm
 from utils import padding_traj, split_motion_inputs
 from utils.visualization import render_animation
 from models.transformer import MotionTransformer
+from models.condition_two_stage import MotionTransformerTwoStage
 from models.diffusion import Diffusion
 from data_loader.dataset_h36m import DatasetH36M
 from data_loader.dataset_humaneva import DatasetHumanEva
@@ -20,7 +21,8 @@ def create_model_and_diffusion(cfg):
     """
     create TransLinear model and Diffusion
     """
-    model = MotionTransformer(
+    model_cls = MotionTransformerTwoStage if cfg.model_variant == 'two_stage' else MotionTransformer
+    model = model_cls(
         input_feats=3 * cfg.joint_num,  # 3 means x, y, z
         cond_feats=3 * cfg.cond_joint_num,
         human_cond_joint_num=cfg.joint_num,
@@ -29,6 +31,7 @@ def create_model_and_diffusion(cfg):
         num_heads=cfg.num_heads,
         latent_dim=cfg.latent_dims,
         dropout=cfg.dropout,
+        stage1_num_layers=cfg.stage1_num_layers,
     ).to(cfg.device)
     diffusion = Diffusion(
         noise_steps=cfg.noise_steps,

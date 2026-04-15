@@ -15,12 +15,24 @@ def compute_all_metrics(pred, gt, gt_multi):
     Returns:
         diversity, ade, fde, mmade, mmfde, ade_m,fde_m, mmade_m, mmfde_m, ade_w, fde_w, mmade_w, mmfde_w
     """
+    device = pred.device if isinstance(pred, torch.Tensor) else torch.device(
+        'cuda' if torch.cuda.is_available() else 'cpu'
+    )
+
+    if not isinstance(pred, torch.Tensor):
+        pred = torch.from_numpy(pred).to(device)
+    if not isinstance(gt, torch.Tensor):
+        gt = torch.from_numpy(gt).to(device)
+    else:
+        gt = gt.to(device)
+
     if pred.shape[0] == 1:
         diversity = 0.0
-    dist_diverse = torch.pdist(pred.reshape(pred.shape[0], -1))
-    diversity = dist_diverse.mean()
+    else:
+        dist_diverse = torch.pdist(pred.reshape(pred.shape[0], -1))
+        diversity = dist_diverse.mean()
 
-    gt_multi = torch.from_numpy(gt_multi).to('cuda')
+    gt_multi = torch.from_numpy(gt_multi).to(device)
     gt_multi_gt = torch.cat([gt_multi, gt], dim=0)
 
     gt_multi_gt = gt_multi_gt[None, ...]

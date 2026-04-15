@@ -3,9 +3,11 @@ dataset: 'harper3d'
 t_his: 100
 t_pred: 400
 batch_size: 32  # 降低batch_size因为序列更长
-num_epoch: 500
-milestone: [100,200,300,400,500]
-save_model_interval: 100
+eval_batch_size: 16  # chunked eval to avoid OOM during DDIM sampling
+num_epoch: 101
+# scaled from [100, 200, 300, 400, 500] for a 101-epoch run
+milestone: [20, 40, 60, 80, 100]
+save_model_interval: 20
 num_data_sample: 50000
 num_val_data_sample: 5000
 lr: 3.e-4
@@ -18,17 +20,20 @@ Complete: True
 noise_steps: 1000
 ddim_timesteps: 100
 scheduler: 'Cosine'
+model_variant: 'two_stage'  # 'default' or 'two_stage'
+stage1_num_layers: 2  # Stage 1: Block 1-2, Stage 2: Block 3-9
 num_layers: 9
 num_heads: 8
 latent_dims: 512
 dropout: 0.2
+# mod_train: 0.9
 mod_train: 0.8
 mod_test: 1.0
 dct_norm_enable: False
 disable_tensorboard: True
 # Harper3D specific settings
 data_path: '/data3/user/qkh/HARPER/HARPER _3D panoptic'
-include_spot: True
+include_spot: True   
 use_spot_condition: True
 predict_human_only: True
 fps: '120hz'

@@ -61,6 +61,7 @@ class Config:
         self.dataset = cfg.get('dataset', 'h36m')
         self.exp_name = cfg.get('exp_name', None)
         self.batch_size = cfg['batch_size']
+        self.eval_batch_size = cfg.get('eval_batch_size', self.batch_size)
         self.normalize_data = cfg.get('normalize_data', False)
         self.t_his = cfg['t_his']
         self.t_pred = cfg['t_pred']
@@ -83,6 +84,8 @@ class Config:
         self.noise_steps = cfg['noise_steps']
         self.ddim_timesteps = cfg['ddim_timesteps']
         self.scheduler = cfg['scheduler']
+        self.model_variant = cfg.get('model_variant', 'default')
+        self.stage1_num_layers = cfg.get('stage1_num_layers', None)
 
         self.num_layers = cfg['num_layers']
         self.latent_dims = cfg['latent_dims']

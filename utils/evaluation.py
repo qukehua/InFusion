@@ -50,62 +50,67 @@ def compute_stats(diffusion, multimodal_dict, model, logger, cfg, wandb_logger=N
         return float(v)
 
     K = 50
-    pred = []
-    for i in tqdm(range(0, K), desc='Eval: DDIM samples (K)', position=0, unit='round'):
-        # It generates a prediction for all samples in the test set
-        # So we need loop for K times
-        pred_i_nd = get_prediction(data_group, model)
-        pred.append(pred_i_nd)
-        if i == K - 1:  # in last iteration, concatenate all candidate pred
-            pred = np.concatenate(pred, axis=0)
-            # pred [50, 5187, 125, 48] in h36m
-            pred = pred[:, :, cfg.t_his:, :]
-            print('Got 50 predictions')
-            # Use GPU to accelerate
-            try:
-                gt_group = torch.from_numpy(gt_group).to('cuda')
-            except:
-                pass
-            try:
-                pred = torch.from_numpy(pred).to('cuda')
-            except:
-                pass
+    eval_batch_size = max(1, min(int(getattr(cfg, 'eval_batch_size', cfg.batch_size)), num_samples))
+    logger.info(f'Chunked eval enabled: eval_batch_size={eval_batch_size}, K={K}')
 
-            for j in tqdm(
-                range(0, num_samples),
+    for start in tqdm(range(0, num_samples, eval_batch_size), desc='Eval: sample chunks', unit='chunk'):
+        end = min(start + eval_batch_size, num_samples)
+        data_chunk = data_group[start:end]
+        pred_chunk = []
+
+        for _ in tqdm(range(0, K), desc='Eval: DDIM samples (K)', position=1, unit='round', leave=False):
+            pred_i_nd = get_prediction(data_chunk, model)
+            pred_chunk.append(pred_i_nd)
+
+        pred_chunk = np.concatenate(pred_chunk, axis=0)
+        pred_chunk = pred_chunk[:, :, cfg.t_his:, :]
+
+        for local_idx, sample_idx in enumerate(
+            tqdm(
+                range(start, end),
                 desc='Eval: metrics per sample',
                 unit='sample',
-                leave=True,
-            ):
-                apd, ade, fde, mmade, mmfde, ade_m,fde_m, mmade_m, mmfde_m, ade_w, fde_w, mmade_w, mmfde_w = compute_all_metrics(pred[:, j, :, :],
-                                                                                                                                 gt_group[j][np.newaxis, ...],
-                                                                                                                                 traj_gt_arr[j])
-                stats_meter['APD']['TransFusion'].update(apd)
-                stats_meter['ADE']['TransFusion'].update(ade)
-                stats_meter['FDE']['TransFusion'].update(fde)
-                stats_meter['MMADE']['TransFusion'].update(mmade)
-                stats_meter['MMFDE']['TransFusion'].update(mmfde)
-                stats_meter['ADE-m']['TransFusion'].update(ade_m)
-                stats_meter['FDE-m']['TransFusion'].update(fde_m)
-                stats_meter['MMADE-m']['TransFusion'].update(mmade_m)
-                stats_meter['MMFDE-m']['TransFusion'].update(mmfde_m)
-                stats_meter['ADE-w']['TransFusion'].update(ade_w)
-                stats_meter['FDE-w']['TransFusion'].update(fde_w)
-                stats_meter['MMADE-w']['TransFusion'].update(mmade_w)
-                stats_meter['MMFDE-w']['TransFusion'].update(mmfde_w)
-            for stats in stats_names:
-                str_stats = f'{stats}: ' + ' '.join(
-                    [f'{x}: {y.avg:.4f}' for x, y in stats_meter[stats].items()]
-                )
-                logger.info(str_stats)
-            if wandb_logger is not None:
-                eval_metrics = {
-                    f'eval/{stats}': _to_float(stats_meter[stats]['TransFusion'].avg)
-                    for stats in stats_names
-                }
-                wandb_logger.log(eval_metrics)
-                wandb_logger.summary.update(eval_metrics)
-            pred = []
+                leave=False,
+                position=1,
+            )
+        ):
+            pred_sample = torch.from_numpy(pred_chunk[:, local_idx, :, :]).to(cfg.device)
+            gt_sample = torch.from_numpy(gt_group[sample_idx][np.newaxis, ...]).to(cfg.device)
+            apd, ade, fde, mmade, mmfde, ade_m, fde_m, mmade_m, mmfde_m, ade_w, fde_w, mmade_w, mmfde_w = compute_all_metrics(
+                pred_sample,
+                gt_sample,
+                traj_gt_arr[sample_idx]
+            )
+            stats_meter['APD']['TransFusion'].update(apd)
+            stats_meter['ADE']['TransFusion'].update(ade)
+            stats_meter['FDE']['TransFusion'].update(fde)
+            stats_meter['MMADE']['TransFusion'].update(mmade)
+            stats_meter['MMFDE']['TransFusion'].update(mmfde)
+            stats_meter['ADE-m']['TransFusion'].update(ade_m)
+            stats_meter['FDE-m']['TransFusion'].update(fde_m)
+            stats_meter['MMADE-m']['TransFusion'].update(mmade_m)
+            stats_meter['MMFDE-m']['TransFusion'].update(mmfde_m)
+            stats_meter['ADE-w']['TransFusion'].update(ade_w)
+            stats_meter['FDE-w']['TransFusion'].update(fde_w)
+            stats_meter['MMADE-w']['TransFusion'].update(mmade_w)
+            stats_meter['MMFDE-w']['TransFusion'].update(mmfde_w)
+
+        del pred_chunk
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+    for stats in stats_names:
+        str_stats = f'{stats}: ' + ' '.join(
+            [f'{x}: {y.avg:.4f}' for x, y in stats_meter[stats].items()]
+        )
+        logger.info(str_stats)
+    if wandb_logger is not None:
+        eval_metrics = {
+            f'eval/{stats}': _to_float(stats_meter[stats]['TransFusion'].avg)
+            for stats in stats_names
+        }
+        wandb_logger.log(eval_metrics)
+        wandb_logger.summary.update(eval_metrics)
 
     # save stats in csv
     file_latest = '%s/stats_latest.csv'
