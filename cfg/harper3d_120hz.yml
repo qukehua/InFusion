@@ -1,9 +1,9 @@
 dataset: 'harper3d'
 seed: 42
-# 120hz: 100帧 = 0.83秒历史, 400帧 = 3.33秒预测 (与30hz时间等效)
+# 120hz: 100 frames = 0.83 seconds history, 400 frames = 3.33 seconds prediction (equivalent to 30hz)
 t_his: 100
 t_pred: 400
-batch_size: 32  # 降低batch_size因为序列更长
+batch_size: 32  # decrease batch_size because the sequence is longer
 eval_batch_size: 16  # chunked eval to avoid OOM during DDIM sampling
 num_epoch: 100
 # scaled from [100, 200, 300, 400, 500] for a 101-epoch run
@@ -12,7 +12,7 @@ save_model_interval: 20
 num_data_sample: 50000
 num_val_data_sample: 5000
 lr: 3.e-4
-n_pre: 50  # 增加DCT系数数量以适应更长序列
+n_pre: 50  #dct parameter
 # Set to 'auto' to auto-construct based on fps
 multimodal_path: '/data3/user/qkh/DATASET/TransFusion/HARPER/t_his100_120hz_thre0.500_t_pred400_thre0.100_filtered.npz'
 data_candi_path: '/data3/user/qkh/DATASET/TransFusion/HARPER/data_candi_120hz_t_his100_t_pred400_skiprate50.npz'
@@ -38,6 +38,14 @@ aug_reverse_prob: 0.2
 use_velocity_input: False  
 velocity_loss_weight: 0  #1.e-5
 vis_azim: 0.0
+vis_elev: 15.0
+vis_axis_radius: 2.5
+vis_size: 3.0
+vis_dpi: 80
+vis_auto_axis: True
+vis_axis_padding: 0.25
+vis_line_width: 1.5
+vis_title_fontsize: 16
 # Harper3D specific settings
 data_path: '/data3/user/qkh/HARPER/HARPER _3D panoptic'
 include_spot: False    #human joints omly: False

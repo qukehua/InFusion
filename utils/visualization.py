@@ -11,8 +11,10 @@ from datetime import datetime
 
 
 def render_animation(skeleton, poses_generator, algos, t_hist, fix_0=True, azim=0.0,
-                     output=None, mode='pred', size=2, ncol=5, bitrate=3000,
-                     coord_order=(0, 1, 2)):
+                     elev=15.0, axis_radius=1.5, output=None, mode='pred',
+                     size=2, ncol=5, bitrate=3000, dpi=80, coord_order=(0, 1, 2),
+                     auto_axis=True, axis_padding=0.2, line_width=2.0,
+                     title_fontsize=18):
     """
     TODO
     Render an animation. The supported output modes are:
@@ -33,34 +35,58 @@ def render_animation(skeleton, poses_generator, algos, t_hist, fix_0=True, azim=
     ax_3d = []
     lines_3d = []
     trajectories = []
-    radius = 1.7
+    axis_radius = float(axis_radius)
     coord_order = tuple(coord_order)
 
     def project_pose(pos):
         return pos[..., coord_order]
 
+    def compute_axis_params(pose_values):
+        params = []
+        for pose in pose_values:
+            projected = project_pose(pose)
+            flat = projected.reshape(-1, 3)
+            mins = flat.min(axis=0)
+            maxs = flat.max(axis=0)
+            center = (mins + maxs) / 2.0
+            radius = max((maxs - mins).max() / 2.0 + axis_padding, 1e-3)
+            params.append((center, radius))
+        return params
+
+    pose_values = list(poses.values())
+    projected_poses = [project_pose(pose) for pose in pose_values]
+    axis_params = compute_axis_params(pose_values)
+
     for index, (title, data) in enumerate(poses.items()):
         ax = fig.add_subplot(nrow, ncol, index+1, projection='3d')
-        ax.view_init(elev=15., azim=azim)
-        ax.set_xlim3d([-radius / 2, radius / 2])
-        ax.set_zlim3d([0, radius])
-        ax.set_ylim3d([-radius / 2, radius / 2])
+        ax.view_init(elev=elev, azim=azim)
+        if auto_axis:
+            center, radius = axis_params[index]
+            ax.set_xlim3d([center[0] - radius, center[0] + radius])
+            ax.set_ylim3d([center[1] - radius, center[1] + radius])
+            ax.set_zlim3d([center[2] - radius, center[2] + radius])
+        else:
+            ax.set_xlim3d([-axis_radius, axis_radius])
+            ax.set_ylim3d([-axis_radius, axis_radius])
+            ax.set_zlim3d([-axis_radius, axis_radius])
+        if hasattr(ax, 'set_box_aspect'):
+            ax.set_box_aspect([1, 1, 1])
         ax.set_xticklabels([])
         ax.set_yticklabels([])
         ax.set_zticklabels([])
         ax.dist = 5.0
         if index == 0 or index == 1:
-            ax.set_title(title, y=1.0, fontsize=24)
+            ax.set_title(title, y=1.0, fontsize=title_fontsize)
         elif index > 1 and index <= 11:
-            ax.set_title(f'pred #{index-1}', y=1.0, fontsize=24)
+            ax.set_title(f'pred #{index-1}', y=1.0, fontsize=title_fontsize)
         ax.set_axis_off()
         ax.patch.set_alpha(0.0)
         ax_3d.append(ax)
         lines_3d.append([])
-        trajectories.append(project_pose(data[:, 0]))
+        trajectories.append(projected_poses[index][:, 0])
     fig.tight_layout(h_pad=15,w_pad=15)
     fig.subplots_adjust(wspace=-0.4, hspace=0.4)
-    poses = list(poses.values())
+    poses = pose_values
 
     anim = None
     initialized = False
@@ -91,15 +117,21 @@ def render_animation(skeleton, poses_generator, algos, t_hist, fix_0=True, azim=
                 continue
             if fix_0 and n % ncol == 0 and i >= t_hist:
                 continue
-            trajectories[n] = project_pose(poses[n][:, 0])
-            ax.set_xlim3d([-radius / 2 + trajectories[n][i, 0], radius / 2 + trajectories[n][i, 0]])
-            ax.set_ylim3d([-radius / 2 + trajectories[n][i, 1], radius / 2 + trajectories[n][i, 1]])
-            ax.set_zlim3d([-radius / 2 + trajectories[n][i, 2], radius / 2 + trajectories[n][i, 2]])
+            trajectories[n] = projected_poses[n][:, 0]
+            if auto_axis:
+                center, radius = axis_params[n]
+                ax.set_xlim3d([center[0] - radius, center[0] + radius])
+                ax.set_ylim3d([center[1] - radius, center[1] + radius])
+                ax.set_zlim3d([center[2] - radius, center[2] + radius])
+            else:
+                ax.set_xlim3d([-axis_radius + trajectories[n][i, 0], axis_radius + trajectories[n][i, 0]])
+                ax.set_ylim3d([-axis_radius + trajectories[n][i, 1], axis_radius + trajectories[n][i, 1]])
+                ax.set_zlim3d([-axis_radius + trajectories[n][i, 2], axis_radius + trajectories[n][i, 2]])
 
         if not initialized:
 
             for n, ax in enumerate(ax_3d):
-                pos = project_pose(poses[n][i])
+                pos = projected_poses[n][i]
                 for j, j_parent in bone_pairs_per_pose[n]:
                     if j in skeleton.joints_right():
                         col = rcol
@@ -110,7 +142,7 @@ def render_animation(skeleton, poses_generator, algos, t_hist, fix_0=True, azim=
 
                     lines_3d[n].append(ax.plot([pos[j, 0], pos[j_parent, 0]],
                                                [pos[j, 1], pos[j_parent, 1]],
-                                               [pos[j, 2], pos[j_parent, 2]], zdir='z', c=col, linewidth=3.0))
+                                               [pos[j, 2], pos[j_parent, 2]], zdir='z', c=col, linewidth=line_width))
             initialized = True
         else:
 
@@ -120,7 +152,7 @@ def render_animation(skeleton, poses_generator, algos, t_hist, fix_0=True, azim=
                 if fix_0 and n % ncol == 0 and i >= t_hist:
                     continue
 
-                pos = project_pose(poses[n][i])
+                pos = projected_poses[n][i]
                 for bone_idx, (j, j_parent) in enumerate(bone_pairs_per_pose[n]):
                     if j in skeleton.joints_right():
                         col = rcol
@@ -143,18 +175,20 @@ def render_animation(skeleton, poses_generator, algos, t_hist, fix_0=True, azim=
         plt.draw()
 
     def reload_poses():
-        nonlocal poses, bone_pairs_per_pose
+        nonlocal poses, projected_poses, axis_params, bone_pairs_per_pose
         poses = dict(filter(lambda x: x[0] in {'gt', 'context'} or algo == x[0].split('_')[0] or x[0].startswith('gt'),
                             all_poses.items()))
         if x[0] in {'gt', 'context'}:
             for ax, title in zip(ax_3d, poses.keys()):
-                ax.set_title(title, y=1.0, fontsize=28)
+                ax.set_title(title, y=1.0, fontsize=title_fontsize)
         if mode == 'switch':
             if x[0] in {algo + '_0'}:
                 for ax, title in zip(ax_3d, poses.keys()):
                     ax.set_title('target', y=1.0, fontsize=12)
         
         poses = list(poses.values())
+        projected_poses = [project_pose(pose) for pose in poses]
+        axis_params = compute_axis_params(poses)
         bone_pairs_per_pose = []
         for pose in poses:
             joint_num = pose.shape[1]
@@ -216,7 +250,7 @@ def render_animation(skeleton, poses_generator, algos, t_hist, fix_0=True, azim=
             writer = Writer(fps=fps, metadata={}, bitrate=bitrate)
             anim.save(output, writer=writer)
         elif output.endswith('.gif'):
-            anim.save(output, dpi=80, writer='pillow')
+            anim.save(output, dpi=dpi, writer='pillow')
         else:
             raise ValueError('Unsupported output format (only .mp4 and .gif are supported)')
         print(f'video saved to {output}!')
