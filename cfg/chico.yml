@@ -1,0 +1,55 @@
+dataset: 'chico'
+# CHICO protocol: 25 frames history + 100 frames prediction
+seed: 42
+t_his: 10
+t_pred: 25
+batch_size: 64
+eval_batch_size: 64
+num_epoch: 100
+milestone: [20, 40, 60, 80, 100]
+save_model_interval: 20
+num_data_sample: 50000
+num_val_data_sample: 5000
+lr: 3.e-4
+
+n_pre: 20
+multimodal_path: '/data/user/qkh/datasets/CHICO/multimodal/t_his25_chico_human_object_thre260.000_t_pred100_thre1000.000_filtered.npz'
+data_candi_path: '/data/user/qkh/datasets/CHICO/multimodal/data_candi_chico_human_object_t_his25_t_pred100_skiprate20.npz'
+padding: 'LastFrame'
+Complete: True
+noise_steps: 1000
+ddim_timesteps: 100
+scheduler: 'Cosine'
+model_variant: 'two_stage'
+stage1_num_layers: 2
+num_layers: 9
+num_heads: 8
+latent_dims: 512
+dropout: 0.2
+
+# modulation settings
+mod_train: 0.9
+mod_test: 1.0
+dct_norm_enable: False
+disable_tensorboard: True
+use_data_aug: True
+aug_rotate_prob: 0.5
+aug_reverse_prob: 0.2
+use_velocity_input: False
+velocity_loss_weight: 0.0
+
+# visualization settings
+vis_azim: 0.0
+vis_elev: 15.0
+vis_axis_radius: 2.5
+vis_size: 3.0
+vis_dpi: 80
+vis_auto_axis: True
+vis_axis_padding: 0.25
+vis_line_width: 1.5
+vis_title_fontsize: 16
+
+# CHICO specific settings
+include_object: True
+predict_human_only: False
+data_path: '/data/user/qkh/datasets/CHICO'

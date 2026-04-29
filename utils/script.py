@@ -8,12 +8,10 @@ from utils.visualization import render_animation
 from models.default import MotionTransformer
 from models.condition_two_stage import MotionTransformerTwoStage
 from models.diffusion import Diffusion
-from data_loader.dataset_h36m import DatasetH36M
-from data_loader.dataset_humaneva import DatasetHumanEva
-from data_loader.dataset_h36m_multimodal import DatasetH36M_multi
-from data_loader.dataset_humaneva_multimodal import DatasetHumanEva_multi
 from data_loader.dataset_harper3d import DatasetHarper3D
 from data_loader.dataset_harper3d_multimodal import DatasetHarper3D_multi
+from data_loader.dataset_chico import DatasetCHICO
+from data_loader.dataset_chico_multimodal import DatasetCHICO_multi
 from scipy.spatial.distance import pdist, squareform
 
 
@@ -63,15 +61,14 @@ def dataset_split(cfg):
     dataset_dict has two keys: 'train', 'test' for enumeration in train and validation.
     dataset_multi_test is used to create multi-modal data for metrics.
     """
-    if cfg.dataset == 'h36m':
-        dataset_cls = DatasetH36M
-        dataset_cls_multi = DatasetH36M_multi
-    elif cfg.dataset == 'harper3d':
+    if cfg.dataset == 'harper3d':
         dataset_cls = DatasetHarper3D
         dataset_cls_multi = DatasetHarper3D_multi
+    elif cfg.dataset == 'chico':
+        dataset_cls = DatasetCHICO
+        dataset_cls_multi = DatasetCHICO_multi
     else:
-        dataset_cls = DatasetHumanEva
-        dataset_cls_multi = DatasetHumanEva_multi
+        raise ValueError(f"Unsupported dataset '{cfg.dataset}'. Supported: 'harper3d', 'chico'.")
 
     if cfg.dataset == 'harper3d':
         dataset = dataset_cls('train', cfg.t_his, cfg.t_pred, actions='all',
@@ -90,13 +87,16 @@ def dataset_split(cfg):
                                                fps=cfg.fps,
                                                multimodal_path=cfg.multimodal_path,
                                                data_candi_path=cfg.data_candi_path)
-    else:
-        dataset = dataset_cls('train', cfg.t_his, cfg.t_pred, actions='all')
-        dataset_test = dataset_cls('test', cfg.t_his, cfg.t_pred, actions='all')
+    elif cfg.dataset == 'chico':
+        dataset = dataset_cls('train', cfg.t_his, cfg.t_pred, actions='all',
+                              data_path=cfg.data_path, include_object=cfg.include_object)
+        dataset_test = dataset_cls('test', cfg.t_his, cfg.t_pred, actions='all',
+                                   data_path=cfg.data_path, include_object=cfg.include_object)
         dataset_multi_test = dataset_cls_multi('test', cfg.t_his, cfg.t_pred,
+                                               data_path=cfg.data_path,
+                                               include_object=cfg.include_object,
                                                multimodal_path=cfg.multimodal_path,
                                                data_candi_path=cfg.data_candi_path)
-
     return {'train': dataset, 'test': dataset_test}, dataset_multi_test
 
 
@@ -105,22 +105,15 @@ def get_multimodal_gt_full(logger, dataset_multi_test, args, cfg):
     calculate the multi-modal data
     """
     logger.info('preparing full evaluation dataset...')
-    if cfg.dataset == 'amass':
-        data_group = dataset_multi_test.data
-        num_samples = data_group.shape[0]
-        all_data, _ = get_position_inputs(data_group, cfg)
-        gt_group = all_data[:, cfg.t_his:, :]
-
-    else:
-        data_group = []
-        num_samples = 0
-        data_gen_multi_test = dataset_multi_test.iter_generator(step=cfg.t_his)
-        for data, _ in data_gen_multi_test:
-            num_samples += 1
-            data_group.append(data)
-        data_group = np.concatenate(data_group, axis=0)
-        all_data, _ = get_position_inputs(data_group, cfg)
-        gt_group = all_data[:, cfg.t_his:, :]
+    data_group = []
+    num_samples = 0
+    data_gen_multi_test = dataset_multi_test.iter_generator(step=cfg.t_his)
+    for data, _ in data_gen_multi_test:
+        num_samples += 1
+        data_group.append(data)
+    data_group = np.concatenate(data_group, axis=0)
+    all_data, _ = get_position_inputs(data_group, cfg)
+    gt_group = all_data[:, cfg.t_his:, :]
 
     all_start_pose = all_data[:, cfg.t_his - 1, :]
     pd = squareform(pdist(all_start_pose))
@@ -134,8 +127,6 @@ def get_multimodal_gt_full(logger, dataset_multi_test, args, cfg):
         ind = np.nonzero(pd[i] < args.multimodal_threshold)
         traj_gt_arr.append(all_data[ind][:, cfg.t_his:, :])
         num_mult.append(len(ind[0]))
-    # np.savez_compressed('./data/data_3d_h36m_test.npz',data=all_data)
-    # np.savez_compressed('./data/data_3d_humaneva15_test.npz',data=all_data)
     num_mult = np.array(num_mult)
     logger.info('=' * 80)
     logger.info(f'Test set size: {num_samples}')

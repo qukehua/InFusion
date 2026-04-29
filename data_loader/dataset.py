@@ -91,11 +91,7 @@ class Dataset:
         return sample
     
     def sample_iter_action(self, action_category, dataset_type):
-        if dataset_type == 'h36m':
-            dict_s = self.data['S9']
-        elif dataset_type == 'humaneva':
-            dict_s = self.data['Validate/S2']
-        elif dataset_type == 'harper3d':
+        if dataset_type == 'harper3d':
             # HARPER stores data as self.data[subject][action_key], where action_key
             # may include suffixes like "act1_0_1" for uniqueness.
             candidate = []
@@ -113,27 +109,35 @@ class Dataset:
             fr_end = fr_start + self.t_total
             traj = seq[fr_start: fr_end]
             return traj[None, ...]
+        elif dataset_type == 'chico':
+            candidate = []
+            for _, dict_s_sub in self.data.items():
+                for action_key, seq in dict_s_sub.items():
+                    if action_key == action_category or action_key.startswith(action_category):
+                        if seq.shape[0] > self.t_total:
+                            candidate.append(seq)
+            if len(candidate) == 0:
+                raise ValueError(
+                    f"No CHICO sequence found for action '{action_category}' with length > t_total ({self.t_total})."
+                )
+            seq = candidate[np.random.randint(len(candidate))]
+            fr_start = np.random.randint(seq.shape[0] - self.t_total)
+            fr_end = fr_start + self.t_total
+            traj = seq[fr_start: fr_end]
+            return traj[None, ...]
         else:
             raise ValueError(f"Unsupported dataset_type '{dataset_type}' in sample_iter_action.")
-        sample = []
-        
-        action = action_category
-        seq = dict_s[action]
-        fr_start = np.random.randint(seq.shape[0] - self.t_total)
-        fr_end = fr_start + self.t_total
-        traj = seq[fr_start: fr_end]
-        sample.append(traj[None, ...])
-
-        sample = np.concatenate(sample, axis=0)
-        return sample
     
     def prepare_iter_action(self, dataset_type):
-        if dataset_type == 'h36m':
-            dict_s = self.data['S9']
-        elif dataset_type == 'humaneva':
-            dict_s = self.data['Validate/S2']
-        elif dataset_type == 'harper3d':
+        if dataset_type == 'harper3d':
             # Collect action names across all subjects; strip duplicate suffixes.
+            action_list = []
+            for _, dict_s_sub in self.data.items():
+                for action_key in dict_s_sub.keys():
+                    base_action = action_key.rsplit('_', 1)[0]
+                    action_list.append(base_action)
+            return sorted(list(set(action_list)))
+        elif dataset_type == 'chico':
             action_list = []
             for _, dict_s_sub in self.data.items():
                 for action_key in dict_s_sub.keys():
@@ -142,18 +146,6 @@ class Dataset:
             return sorted(list(set(action_list)))
         else:
             raise ValueError(f"Unsupported dataset_type '{dataset_type}' in prepare_iter_action.")
-
-        action_list = []
-        sample = []
-
-        for i in range(0, len(list(dict_s.keys()))):
-            type = list(dict_s.keys())[i]
-            if type == 'Discussion':
-                type = 'Discussion 1'
-            action_list.append(type)
-
-        action_list = list(set(action_list))
-        return action_list
 
     def sampling_generator(self, num_samples=1000, batch_size=8, aug=True):
         for i in range(num_samples // batch_size):

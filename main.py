@@ -12,8 +12,6 @@ from tensorboardX import SummaryWriter
 from utils.training import Trainer
 from utils.evaluation import compute_stats
 
-from data_loader.dataset_amass import DatasetAMASS
-
 try:
     import wandb
     WANDB_AVAILABLE = True
@@ -34,7 +32,7 @@ def _to_wandb_safe(value):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--cfg', default='h36m', help='h36m or humaneva or amass or HARPER')
+    parser.add_argument('--cfg', default='chico', help='config id, e.g. chico or harper3d_30hz')
     parser.add_argument('--exp_name', type=str, default=None, help='custom experiment folder name')
     parser.add_argument('--mode', default='train', help='train / eval / pred')
     parser.add_argument('--iter', type=int, default=0)
@@ -59,14 +57,7 @@ if __name__ == '__main__':
     cfg = update_config(cfg, vars(args))
     seed_set(cfg.seed)
 
-    if cfg.dataset == 'amass':
-        # Avoid loading the large AMASS train split for eval/pred to save time & RAM.
-        if args.mode == 'train':
-            dataset = {'train': DatasetAMASS('train'), 'test': DatasetAMASS('test')}
-        else:
-            dataset = {'test': DatasetAMASS('test')}
-    else:
-        dataset, dataset_multi_test = dataset_split(cfg)
+    dataset, dataset_multi_test = dataset_split(cfg)
 
 
     """logger"""
@@ -137,10 +128,7 @@ if __name__ == '__main__':
     elif args.mode == 'eval':
         ckpt = torch.load(args.ckpt)
         model.load_state_dict(ckpt)
-        if cfg.dataset == 'amass':
-            multimodal_dict = get_multimodal_gt_full(logger, dataset['test'], args, cfg)
-        else:
-            multimodal_dict = get_multimodal_gt_full(logger, dataset_multi_test, args, cfg)
+        multimodal_dict = get_multimodal_gt_full(logger, dataset_multi_test, args, cfg)
         compute_stats(diffusion, multimodal_dict, model, logger, cfg, wandb_logger=wandb_logger)
         if wandb_logger is not None:
             wandb.finish()

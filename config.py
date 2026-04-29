@@ -62,7 +62,7 @@ class Config:
         os.makedirs(self.base_dir, exist_ok=True)
 
         # common
-        self.dataset = cfg.get('dataset', 'h36m')
+        self.dataset = cfg.get('dataset', 'chico')
         self.exp_name = cfg.get('exp_name', None)
         self.seed = cfg.get('seed', 0)
         self.batch_size = cfg['batch_size']
@@ -116,24 +116,17 @@ class Config:
 
         self.dct_norm_enable = cfg['dct_norm_enable']
 
-        # harper3d specific config
+        # dataset-specific config
         self.data_path = cfg.get('data_path', './data/harper3d')
         self.include_spot = cfg.get('include_spot', True)
+        self.include_object = cfg.get('include_object', True)
         self.predict_human_only = cfg.get('predict_human_only', False)
         self.use_spot_condition = cfg.get('use_spot_condition', self.include_spot)
         self.fps = cfg.get('fps', '30hz')
         self.harper3d_multimodal_dir = cfg.get('harper3d_multimodal_dir', '/data3/user/qkh/DATASET/TransFusion/HARPER')
 
         # indirect variable
-        if self.dataset == 'h36m':
-            self.joint_num = 16
-            self.cond_joint_num = self.joint_num
-            self.output_total_joints = self.joint_num + 1
-        elif self.dataset == 'amass':
-            self.joint_num = 21
-            self.cond_joint_num = self.joint_num
-            self.output_total_joints = self.joint_num + 1
-        elif self.dataset == 'harper3d':
+        if self.dataset == 'harper3d':
             # Harper3D can use robot joints as conditioning while predicting only
             # human motion. We therefore track output and conditioning sizes separately.
             self.total_joint_num = 44 if self.include_spot else 21
@@ -152,8 +145,14 @@ class Config:
                     self.harper3d_multimodal_dir,
                     f'data_candi_{self.fps}_t_his{self.t_his}_t_pred{self.t_pred}_skiprate20.npz'
                 )
-        else:
-            self.joint_num = 14
+        elif self.dataset == 'chico':
+            self.total_joint_num = 24 if self.include_object else 15
+            # For CHICO we currently predict all used joints and use the same joints for conditioning.
+            self.output_total_joints = self.total_joint_num
+            self.joint_num = self.output_total_joints - 1
             self.cond_joint_num = self.joint_num
-            self.output_total_joints = self.joint_num + 1
+        else:
+            raise ValueError(
+                f"Unsupported dataset '{self.dataset}'. Supported datasets are 'harper3d' and 'chico'."
+            )
         self.idx_pad, self.zero_index = generate_pad(self.padding, self.t_his, self.t_pred)
