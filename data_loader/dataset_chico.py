@@ -16,7 +16,7 @@ class DatasetCHICO(Dataset):
     """
     Data loader for CHICO dataset.
     CHICO pkl frame format:
-      frame = [human_joints_3d(15, 3), object_joints_3d(9, 3)]
+      frame = [human_joints_3d(15, 3), robot_joints_3d(9, 3)]
     """
 
     def __init__(
@@ -27,14 +27,14 @@ class DatasetCHICO(Dataset):
         actions="all",
         use_vel=False,
         data_path="./datasets/CHICO",
-        include_object=True,
+        include_robot=True,
         train_subjects=None,
         val_subjects=None,
         test_subjects=None,
     ):
         self.use_vel = use_vel
         self.data_path = data_path
-        self.include_object = include_object
+        self.include_robot = include_robot
         self.actions_filter = actions
         self.train_subjects = train_subjects
         self.val_subjects = val_subjects
@@ -50,14 +50,14 @@ class DatasetCHICO(Dataset):
         human_parents = [-1, 0, 1, 2, 3, 1, 5, 6, 1, 8, 9, 10, 8, 12, 13]
         human_links = [(j, p) for j, p in enumerate(human_parents) if p != -1]
 
-        if self.include_object:
-            # Object/tool joint graph as a chain for compatibility.
-            object_parents = [-1, 0, 1, 2, 3, 4, 5, 6, 7]
-            object_links = [(j, p) for j, p in enumerate(object_parents) if p != -1]
-            all_parents = human_parents + [p + 15 if p >= 0 else -1 for p in object_parents]
-            all_links = human_links + [(a + 15, b + 15) for a, b in object_links]
+        if self.include_robot:
+            # Robot/tool joint graph as a chain for compatibility.
+            robot_parents = [-1, 0, 1, 2, 3, 4, 5, 6, 7]
+            robot_links = [(j, p) for j, p in enumerate(robot_parents) if p != -1]
+            all_parents = human_parents + [p + 15 if p >= 0 else -1 for p in robot_parents]
+            all_links = human_links + [(a + 15, b + 15) for a, b in robot_links]
             self.num_human_joints = 15
-            self.num_object_joints = 9
+            self.num_robot_joints = 9
             self.total_joints = 24
             joints_left = [5, 6, 7, 12, 13, 14]
             joints_right = [2, 3, 4, 9, 10, 11]
@@ -65,7 +65,7 @@ class DatasetCHICO(Dataset):
             all_parents = human_parents
             all_links = human_links
             self.num_human_joints = 15
-            self.num_object_joints = 0
+            self.num_robot_joints = 0
             self.total_joints = 15
             joints_left = [5, 6, 7, 12, 13, 14]
             joints_right = [2, 3, 4, 9, 10, 11]
@@ -148,9 +148,9 @@ class DatasetCHICO(Dataset):
                     continue
 
                 human_seq = np.asarray([f[0] for f in sequence_list], dtype=np.float32)
-                if self.include_object:
-                    object_seq = np.asarray([f[1] for f in sequence_list], dtype=np.float32)
-                    seq = np.concatenate([human_seq, object_seq], axis=1)
+                if self.include_robot:
+                    robot_seq = np.asarray([f[1] for f in sequence_list], dtype=np.float32)
+                    seq = np.concatenate([human_seq, robot_seq], axis=1)
                 else:
                     seq = human_seq
 

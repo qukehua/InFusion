@@ -12,6 +12,8 @@ from data_loader.dataset_harper3d import DatasetHarper3D
 from data_loader.dataset_harper3d_multimodal import DatasetHarper3D_multi
 from data_loader.dataset_chico import DatasetCHICO
 from data_loader.dataset_chico_multimodal import DatasetCHICO_multi
+from data_loader.dataset_comad import DatasetCoMad
+from data_loader.dataset_comad_multimodal import DatasetCoMad_multi
 from scipy.spatial.distance import pdist, squareform
 
 
@@ -67,8 +69,11 @@ def dataset_split(cfg):
     elif cfg.dataset == 'chico':
         dataset_cls = DatasetCHICO
         dataset_cls_multi = DatasetCHICO_multi
+    elif cfg.dataset == 'comad':
+        dataset_cls = DatasetCoMad
+        dataset_cls_multi = DatasetCoMad_multi
     else:
-        raise ValueError(f"Unsupported dataset '{cfg.dataset}'. Supported: 'harper3d', 'chico'.")
+        raise ValueError(f"Unsupported dataset '{cfg.dataset}'. Supported: 'harper3d', 'chico', 'comad'.")
 
     if cfg.dataset == 'harper3d':
         dataset = dataset_cls('train', cfg.t_his, cfg.t_pred, actions='all',
@@ -89,12 +94,31 @@ def dataset_split(cfg):
                                                data_candi_path=cfg.data_candi_path)
     elif cfg.dataset == 'chico':
         dataset = dataset_cls('train', cfg.t_his, cfg.t_pred, actions='all',
-                              data_path=cfg.data_path, include_object=cfg.include_object)
+                              data_path=cfg.data_path, include_robot=cfg.include_robot)
         dataset_test = dataset_cls('test', cfg.t_his, cfg.t_pred, actions='all',
-                                   data_path=cfg.data_path, include_object=cfg.include_object)
+                                   data_path=cfg.data_path, include_robot=cfg.include_robot)
         dataset_multi_test = dataset_cls_multi('test', cfg.t_his, cfg.t_pred,
                                                data_path=cfg.data_path,
-                                               include_object=cfg.include_object,
+                                               include_robot=cfg.include_robot,
+                                               multimodal_path=cfg.multimodal_path,
+                                               data_candi_path=cfg.data_candi_path)
+    elif cfg.dataset == 'comad':
+        dataset = dataset_cls('train', cfg.t_his, cfg.t_pred, actions='all',
+                              data_path=cfg.data_path,
+                              include_person2=cfg.include_person2,
+                              include_robot=cfg.include_robot,
+                              use_data_aug=cfg.use_data_aug,
+                              aug_rotate_prob=cfg.aug_rotate_prob,
+                              aug_reverse_prob=cfg.aug_reverse_prob)
+        dataset_test = dataset_cls('test', cfg.t_his, cfg.t_pred, actions='all',
+                                   data_path=cfg.data_path,
+                                   include_person2=cfg.include_person2,
+                                   include_robot=cfg.include_robot,
+                                   use_data_aug=False)
+        dataset_multi_test = dataset_cls_multi('test', cfg.t_his, cfg.t_pred,
+                                               data_path=cfg.data_path,
+                                               include_person2=cfg.include_person2,
+                                               include_robot=cfg.include_robot,
                                                multimodal_path=cfg.multimodal_path,
                                                data_candi_path=cfg.data_candi_path)
     return {'train': dataset, 'test': dataset_test}, dataset_multi_test

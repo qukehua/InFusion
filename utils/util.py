@@ -56,6 +56,10 @@ def get_prediction_traj(traj, cfg):
     """
     if getattr(cfg, 'dataset', None) == 'harper3d' and getattr(cfg, 'predict_human_only', False):
         return traj[..., :cfg.output_total_joints, :]
+    if getattr(cfg, 'dataset', None) == 'chico' and getattr(cfg, 'predict_human_only', False):
+        return traj[..., :cfg.output_total_joints, :]
+    if getattr(cfg, 'dataset', None) == 'comad' and getattr(cfg, 'predict_human_only', False):
+        return traj[..., :cfg.output_total_joints, :]
     return traj
 
 
@@ -87,6 +91,44 @@ def get_position_inputs(traj, cfg):
     target_joints = get_prediction_traj(traj, cfg)
     if getattr(cfg, 'dataset', None) == 'harper3d' and getattr(cfg, 'use_spot_condition', False):
         cond_joints = traj
+    elif getattr(cfg, 'dataset', None) == 'chico' and getattr(cfg, 'use_robot_condition', False):
+        cond_joints = traj
+    elif getattr(cfg, 'dataset', None) == 'comad' and (
+        getattr(cfg, 'use_hr_robot_condition', False) or getattr(cfg, 'use_hh_human_condition', False)
+    ):
+        # CoMad scene-aware conditioning:
+        # - HR scenes: robot joints as condition (controlled by use_hr_robot_condition)
+        # - HH scenes: Person_2 joints as condition (controlled by use_hh_human_condition)
+        cond_joints = traj.copy() if not isinstance(traj, torch.Tensor) else traj.clone()
+        p1 = getattr(cfg, 'comad_p1_joints', 25)
+        p2 = getattr(cfg, 'comad_p2_joints', 25)
+        rb = getattr(cfg, 'comad_robot_joints', 12)
+        p2_slice = slice(p1, p1 + p2)
+        rb_slice = slice(p1 + p2, p1 + p2 + rb)
+
+        if rb > 0:
+            if isinstance(cond_joints, torch.Tensor):
+                robot_energy = torch.sum(torch.abs(cond_joints[..., rb_slice, :]), dim=(-1, -2, -3))
+                hr_mask = robot_energy > 1e-6
+                hh_mask = ~hr_mask
+                if p2 > 0:
+                    cond_joints[hr_mask, :, p2_slice, :] = 0
+                if not getattr(cfg, 'use_hr_robot_condition', False):
+                    cond_joints[hr_mask, :, rb_slice, :] = 0
+                cond_joints[hh_mask, :, rb_slice, :] = 0
+                if p2 > 0 and not getattr(cfg, 'use_hh_human_condition', False):
+                    cond_joints[hh_mask, :, p2_slice, :] = 0
+            else:
+                robot_energy = np.sum(np.abs(cond_joints[..., rb_slice, :]), axis=(-1, -2, -3))
+                hr_mask = robot_energy > 1e-6
+                hh_mask = ~hr_mask
+                if p2 > 0:
+                    cond_joints[hr_mask, :, p2_slice, :] = 0
+                if not getattr(cfg, 'use_hr_robot_condition', False):
+                    cond_joints[hr_mask, :, rb_slice, :] = 0
+                cond_joints[hh_mask, :, rb_slice, :] = 0
+                if p2 > 0 and not getattr(cfg, 'use_hh_human_condition', False):
+                    cond_joints[hh_mask, :, p2_slice, :] = 0
     else:
         cond_joints = target_joints
     return flatten_motion_joints(target_joints), flatten_motion_joints(cond_joints)

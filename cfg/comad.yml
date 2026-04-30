@@ -1,8 +1,7 @@
-dataset: 'chico'
-# CHICO protocol: 10 frames history + 25 frames prediction
+dataset: 'comad'
 seed: 42
-t_his: 10
-t_pred: 25
+t_his: 15
+t_pred: 15
 batch_size: 64
 eval_batch_size: 64
 num_epoch: 100
@@ -13,8 +12,8 @@ num_val_data_sample: 5000
 lr: 3.e-4
 
 n_pre: 20
-multimodal_path: '/data/user/qkh/datasets/CHICO/multimodal/t_his10_chico_human_robot_thre260.000_t_pred25_thre1000.000_filtered.npz'
-data_candi_path: '/data/user/qkh/datasets/CHICO/multimodal/data_candi_chico_human_robot_t_his10_t_pred25_skiprate20.npz'
+multimodal_path: '/data/user/qkh/datasets/CoMad/multimodal/t_his15_comad_p1_p2_robot_thre0.500_t_pred15_thre0.100_filtered.npz'
+data_candi_path: '/data/user/qkh/datasets/CoMad/multimodal/data_candi_comad_p1_p2_robot_t_his15_t_pred15_skiprate20.npz'
 padding: 'LastFrame'
 Complete: True
 noise_steps: 1000
@@ -49,8 +48,15 @@ vis_axis_padding: 0.25
 vis_line_width: 1.5
 vis_title_fontsize: 16
 
-# CHICO specific settings
+# CoMad specific settings
+include_person2: True
 include_robot: True
-use_robot_condition: True  
 predict_human_only: True
-data_path: '/data/user/qkh/datasets/CHICO'
+
+# Scene-wise condition control
+# HR scenes -> use robot joints as condition
+use_hr_robot_condition: True
+# HH scenes -> use Person_2 joints as condition
+use_hh_human_condition: True
+
+data_path: '/data/user/qkh/datasets/CoMad'

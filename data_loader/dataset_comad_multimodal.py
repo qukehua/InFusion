@@ -1,10 +1,10 @@
 import numpy as np
-from data_loader.dataset_chico import DatasetCHICO
+from data_loader.dataset_comad import DatasetCoMad
 
 
-class DatasetCHICO_multi(DatasetCHICO):
+class DatasetCoMad_multi(DatasetCoMad):
     """
-    Multi-modal CHICO dataset for evaluation.
+    Multi-modal CoMad dataset for evaluation.
     """
 
     def __init__(
@@ -14,7 +14,8 @@ class DatasetCHICO_multi(DatasetCHICO):
         t_pred=100,
         actions="all",
         use_vel=False,
-        data_path="./datasets/CHICO",
+        data_path="./datasets/CoMad",
+        include_person2=True,
         include_robot=True,
         **kwargs,
     ):
@@ -27,17 +28,11 @@ class DatasetCHICO_multi(DatasetCHICO):
             actions=actions,
             use_vel=use_vel,
             data_path=data_path,
+            include_person2=include_person2,
             include_robot=include_robot,
-            train_subjects=kwargs.get("train_subjects", None),
-            val_subjects=kwargs.get("val_subjects", None),
-            test_subjects=kwargs.get("test_subjects", None),
         )
 
     def sample(self, n_modality=5):
-        """
-        Keep API compatible with other multimodal datasets.
-        Current implementation returns trajectory with optional placeholder multimodal target.
-        """
         traj = super().sample()
         return traj, None
 
@@ -70,10 +65,8 @@ class DatasetCHICO_multi(DatasetCHICO):
 
 if __name__ == "__main__":
     np.random.seed(0)
-    dataset = DatasetCHICO_multi("test", t_his=25, t_pred=100, data_path="./datasets/CHICO")
-    print(f"Dataset loaded with {len(dataset.data)} subjects")
-    for sub in dataset.data:
-        print(f"  Subject {sub}: {len(dataset.data[sub])} sequences")
+    dataset = DatasetCoMad_multi("test", t_his=25, t_pred=100, data_path="./datasets/CoMad")
+    print(f"Dataset loaded with {len(dataset.data)} interaction groups")
     gen = dataset.iter_generator()
     for traj, traj_multi in gen:
         print(f"Traj shape: {traj.shape}, multi: {None if traj_multi is None else traj_multi.shape}")

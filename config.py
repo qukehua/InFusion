@@ -119,9 +119,13 @@ class Config:
         # dataset-specific config
         self.data_path = cfg.get('data_path', './data/harper3d')
         self.include_spot = cfg.get('include_spot', True)
-        self.include_object = cfg.get('include_object', True)
+        self.include_robot = cfg.get('include_robot', True)
+        self.include_person2 = cfg.get('include_person2', True)
         self.predict_human_only = cfg.get('predict_human_only', False)
         self.use_spot_condition = cfg.get('use_spot_condition', self.include_spot)
+        self.use_robot_condition = cfg.get('use_robot_condition', self.include_robot)
+        self.use_hr_robot_condition = cfg.get('use_hr_robot_condition', self.use_robot_condition)
+        self.use_hh_human_condition = cfg.get('use_hh_human_condition', self.include_person2)
         self.fps = cfg.get('fps', '30hz')
         self.harper3d_multimodal_dir = cfg.get('harper3d_multimodal_dir', '/data3/user/qkh/DATASET/TransFusion/HARPER')
 
@@ -146,13 +150,22 @@ class Config:
                     f'data_candi_{self.fps}_t_his{self.t_his}_t_pred{self.t_pred}_skiprate20.npz'
                 )
         elif self.dataset == 'chico':
-            self.total_joint_num = 24 if self.include_object else 15
-            # For CHICO we currently predict all used joints and use the same joints for conditioning.
-            self.output_total_joints = self.total_joint_num
+            # CHICO: 15 human joints + 9 robot joints.
+            self.total_joint_num = 24 if self.include_robot else 15
+            self.output_total_joints = 15 if self.predict_human_only else self.total_joint_num
             self.joint_num = self.output_total_joints - 1
-            self.cond_joint_num = self.joint_num
+            self.cond_joint_num = self.total_joint_num - 1 if self.use_robot_condition else self.joint_num
+        elif self.dataset == 'comad':
+            self.comad_p1_joints = 25
+            self.comad_p2_joints = 25 if self.include_person2 else 0
+            self.comad_robot_joints = 12 if self.include_robot else 0
+            self.total_joint_num = self.comad_p1_joints + self.comad_p2_joints + self.comad_robot_joints
+            self.output_total_joints = self.comad_p1_joints if self.predict_human_only else self.total_joint_num
+            self.joint_num = self.output_total_joints - 1
+            use_scene_condition = self.use_hr_robot_condition or self.use_hh_human_condition
+            self.cond_joint_num = self.total_joint_num - 1 if use_scene_condition else self.joint_num
         else:
             raise ValueError(
-                f"Unsupported dataset '{self.dataset}'. Supported datasets are 'harper3d' and 'chico'."
+                f"Unsupported dataset '{self.dataset}'. Supported datasets are 'harper3d', 'chico', and 'comad'."
             )
         self.idx_pad, self.zero_index = generate_pad(self.padding, self.t_his, self.t_pred)

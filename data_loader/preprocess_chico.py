@@ -29,7 +29,7 @@ def load_pkl(pkl_file: str):
     return data
 
 
-def load_chico_sequences(data_path, split_subjects, include_object=True):
+def load_chico_sequences(data_path, split_subjects, include_robot=True):
     """
     Load all CHICO sequences.
     CHICO structure: data_path/dataset/Sxx/*.pkl
@@ -49,9 +49,9 @@ def load_chico_sequences(data_path, split_subjects, include_object=True):
                 continue
 
             human_seq = np.asarray([f[0] for f in sequence_list], dtype=np.float32)
-            if include_object:
-                object_seq = np.asarray([f[1] for f in sequence_list], dtype=np.float32)
-                seq = np.concatenate([human_seq, object_seq], axis=1)
+            if include_robot:
+                robot_seq = np.asarray([f[1] for f in sequence_list], dtype=np.float32)
+                seq = np.concatenate([human_seq, robot_seq], axis=1)
             else:
                 seq = human_seq
 
@@ -165,12 +165,12 @@ def main():
         default="/data/user/qkh/datasets/CHICO/multimodal",
         help="Output directory for preprocessed files",
     )
-    parser.add_argument("--t_his", type=int, default=25, help="History frames")
-    parser.add_argument("--t_pred", type=int, default=100, help="Prediction frames")
+    parser.add_argument("--t_his", type=int, default=10, help="History frames")
+    parser.add_argument("--t_pred", type=int, default=25, help="Prediction frames")
     parser.add_argument("--skip_rate", type=int, default=20, help="Skip rate for extracting windows")
     parser.add_argument("--thre_his", type=float, default=320, help="History similarity threshold")
     parser.add_argument("--thre_pred", type=float, default=1000, help="Future difference threshold")
-    parser.add_argument("--include_object", action="store_true", help="Include object/tool joints")
+    parser.add_argument("--include_robot", action="store_true", help="Include robot/tool joints")
     parser.add_argument(
         "--val_subjects",
         nargs="+",
@@ -213,14 +213,15 @@ def main():
     print(f"Output dir: {args.output_dir}")
     print(f"t_his: {args.t_his}, t_pred: {args.t_pred}, skip_rate: {args.skip_rate}")
     print(f"thre_his: {args.thre_his}, thre_pred: {args.thre_pred}")
-    print(f"include_object: {args.include_object}")
+    include_robot = args.include_robot
+    print(f"include_robot: {include_robot}")
     print(f"Train subjects ({len(train_subjects)}): {train_subjects}")
     print(f"Val subjects ({len(val_subjects)}): {val_subjects}")
     print(f"Test subjects: {test_subjects}")
     print("=" * 60)
 
     print("\n[1/4] Loading test sequences...")
-    sequences, seq_info = load_chico_sequences(args.data_path, test_subjects, include_object=args.include_object)
+    sequences, seq_info = load_chico_sequences(args.data_path, test_subjects, include_robot=include_robot)
     print(f"Loaded {len(sequences)} sequences from {len(set([s['subject'] for s in seq_info]))} subjects")
 
     print("\n[2/4] Extracting sliding windows...")
@@ -229,7 +230,7 @@ def main():
     print(f"Window shape: {windows.shape}")
 
     print("\n[3/4] Saving candidate trajectories...")
-    tag = "human_object" if args.include_object else "human_only"
+    tag = "human_robot" if include_robot else "human_only"
     candi_file = os.path.join(
         args.output_dir,
         f"data_candi_chico_{tag}_t_his{args.t_his}_t_pred{args.t_pred}_skiprate{args.skip_rate}.npz",
