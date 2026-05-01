@@ -15,8 +15,8 @@ lr: 3.e-4  #original
 
 n_pre: 20  #dct parameter
 # Set to 'auto' to auto-construct based on fps
-multimodal_path: '/data3/user/qkh/DATASET/TransFusion/HARPER/t_his25_30hz_thre0.500_t_pred100_thre0.100_filtered.npz'
-data_candi_path: '/data3/user/qkh/DATASET/TransFusion/HARPER/data_candi_30hz_t_his25_t_pred100_skiprate20.npz'
+multimodal_path: '/data/user/qkh/datasets/HARPER/multimodal/t_his25_30hz_thre0.500_t_pred100_thre0.100_filtered.npz'
+data_candi_path: '/data/user/qkh/datasets/HARPER/multimodal/data_candi_30hz_t_his25_t_pred100_skiprate20.npz'
 padding: 'LastFrame'   # Zero or LastFrame
 Complete: True
 noise_steps: 1000
@@ -54,6 +54,6 @@ vis_title_fontsize: 16
 include_spot: True    #human joints omly: False
 use_spot_condition: True    #human joints omly: False
 predict_human_only: True
-data_path: '/data3/user/qkh/HARPER/HARPER _3D panoptic'
+data_path: '/data/user/qkh/datasets/HARPER/HARPER _3D panoptic'
 fps: '30hz'
 

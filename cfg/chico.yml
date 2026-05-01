@@ -4,7 +4,7 @@ seed: 42
 t_his: 10
 t_pred: 25
 batch_size: 64
-eval_batch_size: 64
+eval_batch_size: 2048 
 num_epoch: 100
 milestone: [20, 40, 60, 80, 100]
 save_model_interval: 20
@@ -13,7 +13,7 @@ num_val_data_sample: 5000
 lr: 3.e-4
 
 n_pre: 20
-multimodal_path: '/data/user/qkh/datasets/CHICO/multimodal/t_his10_chico_human_robot_thre260.000_t_pred25_thre1000.000_filtered.npz'
+multimodal_path: '/data/user/qkh/datasets/CHICO/multimodal/t_his10_chico_human_robot_thre120.000_t_pred25_thre200.000_filtered.npz'
 data_candi_path: '/data/user/qkh/datasets/CHICO/multimodal/data_candi_chico_human_robot_t_his10_t_pred25_skiprate20.npz'
 padding: 'LastFrame'
 Complete: True

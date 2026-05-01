@@ -9,8 +9,8 @@
 The following code is tested on Linux-64 in a cluster environment as well as on Windows 11. If you are using Linux-64 in a cluster environment, please use `source activate transfusion` instead of `conda activate transfusion`.
 
 ```
-conda create -n cofusion python=3.8
-conda activate cofusion
+conda create -n infusion python=3.8
+conda activate infusion
 python -m pip install torch==1.7.1+cu110 torchvision==0.8.2+cu110 -f https://download.pytorch.org/whl/torch_stable.html
 python -m pip install -r requirement.txt
 ```
@@ -38,9 +38,17 @@ data
 
 Training on HARPER:
 
-CUDA_VISIBLE_DEVICES=0 python main.py --cfg harper3d_30hz --mode train --exp_name harper3d_30hz
+python main.py --cfg harper3d_30hz --mode train --exp_name harper3d_30hz
 
-CUDA_VISIBLE_DEVICES=0 python main.py --cfg harper3d_120hz --mode train --exp_name harper3d_120hz
+python main.py --cfg harper3d_120hz --mode train --exp_name harper3d_120hz
+
+Training on CHICO:
+
+python main.py --cfg chico --mode train --exp_name chico
+
+Training on CoMad:
+
+python main.py --cfg comad --mode train --exp_name comad
 
 
 ### 🔎 To Evaluation
@@ -51,8 +59,13 @@ python main.py --cfg harper3d_30hz --mode eval --ckpt ./results/harper3d_30hz/mo
 
 python main.py --cfg harper3d_120hz --mode eval --ckpt ./results/harper3d_120hz/models/best_ema.pt
 
+Evaluate on CHICO:
 
+python main.py --cfg chico --mode eval --ckpt ./results/chico/models/best_ema.pt
 
+Evaluate on CoMad:
+
+python main.py --cfg comad --mode eval --ckpt ./results/comad/models/best_ema.pt
 
 ## 🎥 To Visualization
 Run the following scripts for visualization purpose:

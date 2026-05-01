@@ -168,8 +168,8 @@ def main():
     parser.add_argument("--t_his", type=int, default=10, help="History frames")
     parser.add_argument("--t_pred", type=int, default=25, help="Prediction frames")
     parser.add_argument("--skip_rate", type=int, default=20, help="Skip rate for extracting windows")
-    parser.add_argument("--thre_his", type=float, default=320, help="History similarity threshold")
-    parser.add_argument("--thre_pred", type=float, default=1000, help="Future difference threshold")
+    parser.add_argument("--thre_his", type=float, default=120, help="History similarity threshold")
+    parser.add_argument("--thre_pred", type=float, default=200, help="Future difference threshold")
     parser.add_argument("--include_robot", action="store_true", help="Include robot/tool joints")
     parser.add_argument(
         "--val_subjects",

@@ -14,8 +14,8 @@ num_val_data_sample: 5000
 lr: 3.e-4
 n_pre: 50  #dct parameter
 # Set to 'auto' to auto-construct based on fps
-multimodal_path: '/data3/user/qkh/DATASET/TransFusion/HARPER/t_his100_120hz_thre0.500_t_pred400_thre0.100_filtered.npz'
-data_candi_path: '/data3/user/qkh/DATASET/TransFusion/HARPER/data_candi_120hz_t_his100_t_pred400_skiprate50.npz'
+multimodal_path: '/data/user/qkh/datasets/HARPER/t_his100_120hz_thre0.500_t_pred400_thre0.100_filtered.npz'
+data_candi_path: '/data/user/qkh/datasets/HARPER/data_candi_120hz_t_his100_t_pred400_skiprate50.npz'
 padding: 'LastFrame'
 Complete: True
 noise_steps: 1000
@@ -47,7 +47,7 @@ vis_axis_padding: 0.25
 vis_line_width: 1.5
 vis_title_fontsize: 16
 # Harper3D specific settings
-data_path: '/data3/user/qkh/HARPER/HARPER _3D panoptic'
+data_path: '/data/user/qkh/datasets/HARPER/HARPER _3D panoptic'
 include_spot: False    #human joints omly: False
 use_spot_condition: False    #human joints omly: False
 predict_human_only: True
