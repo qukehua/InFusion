@@ -74,7 +74,13 @@ python main.py --cfg harper3d_30hz --mode pred --vis_row 3 --vis_col 10 --ckpt .
 
 python main.py --cfg harper3d_120hz --mode pred --vis_row 3 --vis_col 10 --ckpt ./results/harper3d_120hz/models/best_ema.pt
 
+Evaluate on CHICO:
 
+python main.py --cfg chico --mode pred --vis_row 3 --vis_col 10 --ckpt ./results/chico/models/best_ema.pt
+
+Evaluate on CoMad:
+
+python main.py --cfg comad --mode pred --vis_row 3 --vis_col 10 --ckpt ./results/comad/models/best_ema.pt
 
 
 
