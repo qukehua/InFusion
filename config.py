@@ -91,6 +91,8 @@ class Config:
         self.vis_axis_padding = cfg.get('vis_axis_padding', 0.2)
         self.vis_line_width = cfg.get('vis_line_width', 2.0)
         self.vis_title_fontsize = cfg.get('vis_title_fontsize', 18)
+        self.vis_sample_strategy = cfg.get('vis_sample_strategy', 'random')
+        self.vis_candidate_k = cfg.get('vis_candidate_k', 10)
         self.use_velocity_input = cfg.get('use_velocity_input', False)
         self.velocity_loss_weight = cfg.get('velocity_loss_weight', 0.0)
 
@@ -150,6 +152,8 @@ class Config:
                     f'data_candi_{self.fps}_t_his{self.t_his}_t_pred{self.t_pred}_skiprate20.npz'
                 )
         elif self.dataset == 'chico':
+            # Match CHICO-PoseForecasting: train/eval on normal actions only (no *_CRASH.pkl).
+            self.chico_exclude_crash = cfg.get('chico_exclude_crash', True)
             # CHICO: 15 human joints + 9 robot joints.
             self.total_joint_num = 24 if self.include_robot else 15
             self.output_total_joints = 15 if self.predict_human_only else self.total_joint_num

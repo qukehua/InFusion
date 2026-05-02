@@ -31,11 +31,13 @@ class DatasetCHICO(Dataset):
         train_subjects=None,
         val_subjects=None,
         test_subjects=None,
+        exclude_crash=True,
     ):
         self.use_vel = use_vel
         self.data_path = data_path
         self.include_robot = include_robot
         self.actions_filter = actions
+        self.exclude_crash = exclude_crash
         self.train_subjects = train_subjects
         self.val_subjects = val_subjects
         self.test_subjects = test_subjects
@@ -46,29 +48,52 @@ class DatasetCHICO(Dataset):
             self.traj_dim += 3
 
     def prepare_data(self):
-        # A simple tree-compatible skeleton definition for CHICO 15-joint body.
-        human_parents = [-1, 0, 1, 2, 3, 1, 5, 6, 1, 8, 9, 10, 8, 12, 13]
-        human_links = [(j, p) for j, p in enumerate(human_parents) if p != -1]
+        # CHICO 15-joint layout and edges match the authors' visualization utils:
+        # https://github.com/federicocunico/human-robot-collaboration/blob/master/datasets/chico_dataset.py
+        # Index: 0 hip, 1 r_hip, 2 r_knee, 3 r_foot, 4 l_hip, 5 l_knee, 6 l_foot,
+        #        7 nose, 8 c_shoulder, 9 r_shoulder, 10 r_elbow, 11 r_wrist,
+        #        12 l_shoulder, 13 l_elbow, 14 l_wrist
+        # The published graph is not a tree (torso uses diagonals 1–9 and 4–12); we pass explicit links for drawing.
+        # (j, j_parent): first index is used for left/right bone color in utils/visualization.py
+        human_links = [
+            (1, 0),
+            (2, 1),
+            (3, 2),
+            (4, 0),
+            (5, 4),
+            (6, 5),
+            (9, 1),
+            (12, 4),
+            (7, 8),
+            (9, 8),
+            (12, 8),
+            (10, 9),
+            (11, 10),
+            (13, 12),
+            (14, 13),
+        ]
+        # Spanning tree compatible with the same indices (for Skeleton.parents / metadata only).
+        human_parents = [-1, 0, 1, 2, 0, 4, 5, 8, 0, 8, 9, 10, 8, 12, 13]
 
         if self.include_robot:
-            # Robot/tool joint graph as a chain for compatibility.
+            # Robot/tool joint graph as a chain (same as reference KUKA links, 9 joints).
             robot_parents = [-1, 0, 1, 2, 3, 4, 5, 6, 7]
             robot_links = [(j, p) for j, p in enumerate(robot_parents) if p != -1]
             all_parents = human_parents + [p + 15 if p >= 0 else -1 for p in robot_parents]
-            all_links = human_links + [(a + 15, b + 15) for a, b in robot_links]
+            all_links = list(human_links) + [(a + 15, b + 15) for a, b in robot_links]
             self.num_human_joints = 15
             self.num_robot_joints = 9
             self.total_joints = 24
-            joints_left = [5, 6, 7, 12, 13, 14]
-            joints_right = [2, 3, 4, 9, 10, 11]
+            joints_left = [4, 5, 6, 12, 13, 14]
+            joints_right = [1, 2, 3, 9, 10, 11]
         else:
             all_parents = human_parents
-            all_links = human_links
+            all_links = list(human_links)
             self.num_human_joints = 15
             self.num_robot_joints = 0
             self.total_joints = 15
-            joints_left = [5, 6, 7, 12, 13, 14]
-            joints_right = [2, 3, 4, 9, 10, 11]
+            joints_left = [4, 5, 6, 12, 13, 14]
+            joints_right = [1, 2, 3, 9, 10, 11]
 
         self.skeleton = Skeleton(
             parents=all_parents,
@@ -136,6 +161,8 @@ class DatasetCHICO(Dataset):
             self.data[subject] = {}
             for pkl_file in pkl_files:
                 action = os.path.splitext(os.path.basename(pkl_file))[0]
+                if self.exclude_crash and "_CRASH" in action:
+                    continue
                 if self.actions_filter != "all":
                     if isinstance(self.actions_filter, str):
                         if action != self.actions_filter:

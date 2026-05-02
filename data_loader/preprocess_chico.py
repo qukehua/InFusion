@@ -7,6 +7,9 @@ This script generates:
 
 Usage:
     python preprocess_chico.py --data_path ./datasets/CHICO --output_dir ./data/chico_multi_modal
+
+By default, *_CRASH.pkl files are skipped (same as DatasetCHICO with chico_exclude_crash / CHICO-PoseForecasting normal_actions).
+Pass --include_crash to keep collision sequences in multimodal npz.
 """
 
 import os
@@ -29,10 +32,11 @@ def load_pkl(pkl_file: str):
     return data
 
 
-def load_chico_sequences(data_path, split_subjects, include_robot=True):
+def load_chico_sequences(data_path, split_subjects, include_robot=True, exclude_crash=True):
     """
     Load all CHICO sequences.
     CHICO structure: data_path/dataset/Sxx/*.pkl
+    If exclude_crash is True, skip files whose stem contains '_CRASH' (dataset collision segments).
     """
     dataset_dir = os.path.join(data_path, "dataset")
     all_sequences = []
@@ -44,6 +48,9 @@ def load_chico_sequences(data_path, split_subjects, include_robot=True):
             continue
         pkl_files = sorted(glob(os.path.join(subject_dir, "*.pkl")))
         for pkl_file in tqdm(pkl_files, desc=f"Loading {subject}"):
+            action = os.path.splitext(os.path.basename(pkl_file))[0]
+            if exclude_crash and "_CRASH" in action:
+                continue
             sequence_list = load_pkl(pkl_file)
             if len(sequence_list) == 0:
                 continue
@@ -62,7 +69,7 @@ def load_chico_sequences(data_path, split_subjects, include_robot=True):
             sequence_info.append(
                 {
                     "subject": subject,
-                    "action": os.path.splitext(os.path.basename(pkl_file))[0],
+                    "action": action,
                     "file": os.path.basename(pkl_file),
                     "length": len(sequence_list),
                 }
@@ -158,12 +165,19 @@ def compute_multimodal_indices(windows, t_his, thre_his=0.5, thre_pred=0.1):
 
 def main():
     parser = argparse.ArgumentParser(description="Preprocess CHICO for multimodal evaluation")
-    parser.add_argument("--data_path", type=str, default="/data/user/qkh/datasets/CHICO", help="Path to CHICO root")
+    # Same layout as cfg/chico.yml data_path: .../CHICO/datasets → contains dataset/Sxx/*.pkl
+    _default_chico_root = "/data3/user/qkh/datasets/CHICO/datasets"
+    parser.add_argument(
+        "--data_path",
+        type=str,
+        default=_default_chico_root,
+        help="CHICO root (must contain a `dataset/` subfolder with Sxx/*.pkl)",
+    )
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="/data/user/qkh/datasets/CHICO/multimodal",
-        help="Output directory for preprocessed files",
+        default="/data3/user/qkh/datasets/CHICO/multimodal",
+        help="Output directory for preprocessed files (must be writable)",
     )
     parser.add_argument("--t_his", type=int, default=10, help="History frames")
     parser.add_argument("--t_pred", type=int, default=25, help="Prediction frames")
@@ -183,7 +197,13 @@ def main():
         default=None,
         help="Optional test subjects like S02 S03 S18 S19 (paper default)",
     )
+    parser.add_argument(
+        "--include_crash",
+        action="store_true",
+        help="Load *_CRASH.pkl collision segments (default: exclude, align with training / normal_actions).",
+    )
     args = parser.parse_args()
+    exclude_crash = not args.include_crash
 
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -215,13 +235,19 @@ def main():
     print(f"thre_his: {args.thre_his}, thre_pred: {args.thre_pred}")
     include_robot = args.include_robot
     print(f"include_robot: {include_robot}")
+    print(f"exclude_crash: {exclude_crash}")
     print(f"Train subjects ({len(train_subjects)}): {train_subjects}")
     print(f"Val subjects ({len(val_subjects)}): {val_subjects}")
     print(f"Test subjects: {test_subjects}")
     print("=" * 60)
 
     print("\n[1/4] Loading test sequences...")
-    sequences, seq_info = load_chico_sequences(args.data_path, test_subjects, include_robot=include_robot)
+    sequences, seq_info = load_chico_sequences(
+        args.data_path,
+        test_subjects,
+        include_robot=include_robot,
+        exclude_crash=exclude_crash,
+    )
     print(f"Loaded {len(sequences)} sequences from {len(set([s['subject'] for s in seq_info]))} subjects")
 
     print("\n[2/4] Extracting sliding windows...")

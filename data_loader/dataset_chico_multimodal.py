@@ -31,6 +31,7 @@ class DatasetCHICO_multi(DatasetCHICO):
             train_subjects=kwargs.get("train_subjects", None),
             val_subjects=kwargs.get("val_subjects", None),
             test_subjects=kwargs.get("test_subjects", None),
+            exclude_crash=kwargs.get("exclude_crash", True),
         )
 
     def sample(self, n_modality=5):

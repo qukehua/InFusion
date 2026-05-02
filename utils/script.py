@@ -93,15 +93,34 @@ def dataset_split(cfg):
                                                multimodal_path=cfg.multimodal_path,
                                                data_candi_path=cfg.data_candi_path)
     elif cfg.dataset == 'chico':
-        dataset = dataset_cls('train', cfg.t_his, cfg.t_pred, actions='all',
-                              data_path=cfg.data_path, include_robot=cfg.include_robot)
-        dataset_test = dataset_cls('test', cfg.t_his, cfg.t_pred, actions='all',
-                                   data_path=cfg.data_path, include_robot=cfg.include_robot)
-        dataset_multi_test = dataset_cls_multi('test', cfg.t_his, cfg.t_pred,
-                                               data_path=cfg.data_path,
-                                               include_robot=cfg.include_robot,
-                                               multimodal_path=cfg.multimodal_path,
-                                               data_candi_path=cfg.data_candi_path)
+        dataset = dataset_cls(
+            'train',
+            cfg.t_his,
+            cfg.t_pred,
+            actions='all',
+            data_path=cfg.data_path,
+            include_robot=cfg.include_robot,
+            exclude_crash=cfg.chico_exclude_crash,
+        )
+        dataset_test = dataset_cls(
+            'test',
+            cfg.t_his,
+            cfg.t_pred,
+            actions='all',
+            data_path=cfg.data_path,
+            include_robot=cfg.include_robot,
+            exclude_crash=cfg.chico_exclude_crash,
+        )
+        dataset_multi_test = dataset_cls_multi(
+            'test',
+            cfg.t_his,
+            cfg.t_pred,
+            data_path=cfg.data_path,
+            include_robot=cfg.include_robot,
+            multimodal_path=cfg.multimodal_path,
+            data_candi_path=cfg.data_candi_path,
+            exclude_crash=cfg.chico_exclude_crash,
+        )
     elif cfg.dataset == 'comad':
         dataset = dataset_cls('train', cfg.t_his, cfg.t_pred, actions='all',
                               data_path=cfg.data_path,
@@ -179,7 +198,7 @@ def display_exp_setting(logger, cfg):
     logger.info('=' * 80)
 
 
-def sample_preprocessing(traj, cfg, mode, traj_cond=None):
+def sample_preprocessing(traj, cfg, mode, traj_cond=None, sample_num=None):
     """
     This function is used to preprocess traj for sample_ddim().
     input : traj_seq, cfg, mode
@@ -192,7 +211,7 @@ def sample_preprocessing(traj, cfg, mode, traj_cond=None):
         traj_cond = traj
 
     if mode == 'pred':
-        n = cfg.vis_col
+        n = cfg.vis_col if sample_num is None else int(sample_num)
         traj = traj.repeat(n, 1, 1)
         traj_cond = traj_cond.repeat(n, 1, 1)
 

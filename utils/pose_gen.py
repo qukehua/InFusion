@@ -3,18 +3,51 @@ from utils import *
 from utils.script import sample_preprocessing
 
 
+def _select_visual_samples(traj_est, cfg):
+    """
+    Select displayed samples from candidate trajectories.
+
+    Strategies:
+      - random: keep random candidates (legacy behavior)
+      - median: choose trajectories closest to the point-wise median trajectory
+    """
+    n_show = int(getattr(cfg, 'vis_col', traj_est.shape[0]))
+    if traj_est.shape[0] <= n_show:
+        return traj_est
+
+    strategy = str(getattr(cfg, 'vis_sample_strategy', 'random')).lower()
+    if strategy == 'random':
+        idx = np.random.choice(traj_est.shape[0], size=n_show, replace=False)
+        return traj_est[idx]
+    if strategy == 'median':
+        median_traj = np.median(traj_est, axis=0, keepdims=True)
+        dist = np.linalg.norm((traj_est - median_traj).reshape(traj_est.shape[0], -1), axis=1)
+        idx = np.argsort(dist)[:n_show]
+        return traj_est[idx]
+
+    raise ValueError(
+        f"Unsupported vis_sample_strategy '{strategy}'. Supported: 'random', 'median'."
+    )
+
+
 def _attach_robot_joints_for_vis(pred_human, gt_full, cfg):
     """
-    For HARPER human-only prediction, append GT robot joints so rendered poses
-    share the same full skeleton (human + robot) as context/gt panels.
+    For human-only prediction, append GT robot / Spot joints so rendered pred
+    panels use the same full skeleton (human + robot) as context/gt.
     """
-    if getattr(cfg, 'dataset', None) != 'harper3d':
-        return pred_human
-    if not getattr(cfg, 'include_spot', False):
-        return pred_human
     if not getattr(cfg, 'predict_human_only', False):
         return pred_human
     if gt_full.shape[1] <= cfg.output_total_joints:
+        return pred_human
+
+    ds = getattr(cfg, 'dataset', None)
+    if ds == 'harper3d':
+        if not getattr(cfg, 'include_spot', False):
+            return pred_human
+    elif ds == 'chico':
+        if not getattr(cfg, 'include_robot', False):
+            return pred_human
+    else:
         return pred_human
 
     # gt_full: [T, J_full, 3], pred_human: [N, T, J_human, 3]
@@ -61,7 +94,12 @@ def pose_generator(data_set, model_select, diffusion, cfg, mode=None,
             traj = tensor(traj_np, device=cfg.device, dtype=cfg.dtype)
             traj_cond = tensor(traj_cond_np, device=cfg.device, dtype=cfg.dtype)
 
-            mode_dict, traj_dct, traj_dct_mod = sample_preprocessing(traj, cfg, mode=mode, traj_cond=traj_cond)
+            n_show = int(getattr(cfg, 'vis_col', 10))
+            n_candidate = getattr(cfg, 'vis_candidate_k', n_show)
+            n_candidate = max(n_show, int(n_candidate))
+            mode_dict, traj_dct, traj_dct_mod = sample_preprocessing(
+                traj, cfg, mode=mode, traj_cond=traj_cond, sample_num=n_candidate
+            )
             sampled_motion = diffusion.sample_ddim(model_select,
                                                    traj_dct,
                                                    traj_dct_mod,
@@ -72,6 +110,7 @@ def pose_generator(data_set, model_select, diffusion, cfg, mode=None,
             traj_est = traj_est.cpu().numpy()
             traj_est = post_process(traj_est, cfg)
             traj_est = _attach_robot_joints_for_vis(traj_est, gt[0], cfg)
+            traj_est = _select_visual_samples(traj_est, cfg)
 
             if k == 0:
                 for j in range(traj_est.shape[0]):

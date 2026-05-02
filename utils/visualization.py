@@ -14,7 +14,7 @@ def render_animation(skeleton, poses_generator, algos, t_hist, fix_0=True, azim=
                      elev=15.0, axis_radius=1.5, output=None, mode='pred',
                      size=2, ncol=5, bitrate=3000, dpi=80, coord_order=(0, 1, 2),
                      auto_axis=True, axis_padding=0.2, line_width=2.0,
-                     title_fontsize=18):
+                     title_fontsize=18, axis_bbox_num_joints=None):
     """
     TODO
     Render an animation. The supported output modes are:
@@ -53,6 +53,24 @@ def render_animation(skeleton, poses_generator, algos, t_hist, fix_0=True, azim=
             params.append((center, radius))
         return params
 
+    def axis_params_one_frame(single_frame_joints):
+        """Bounding sphere from one skeleton pose (avoids tiny figures when global bbox is huge).
+
+        If axis_bbox_num_joints is set, only those joints (e.g. human body) set the limits—
+        optional GT robot/Spot joints appended for drawing must not expand the box (CHICO KUKA
+        reaches far above the human and caused tiny human figures).
+        """
+        jnts = single_frame_joints
+        if axis_bbox_num_joints is not None:
+            jnts = single_frame_joints[:axis_bbox_num_joints]
+        projected = project_pose(jnts)
+        flat = projected.reshape(-1, 3)
+        mins = flat.min(axis=0)
+        maxs = flat.max(axis=0)
+        center = (mins + maxs) / 2.0
+        radius = max((maxs - mins).max() / 2.0 + axis_padding, 1e-3)
+        return center, radius
+
     pose_values = list(poses.values())
     projected_poses = [project_pose(pose) for pose in pose_values]
     axis_params = compute_axis_params(pose_values)
@@ -61,7 +79,7 @@ def render_animation(skeleton, poses_generator, algos, t_hist, fix_0=True, azim=
         ax = fig.add_subplot(nrow, ncol, index+1, projection='3d')
         ax.view_init(elev=elev, azim=azim)
         if auto_axis:
-            center, radius = axis_params[index]
+            center, radius = axis_params_one_frame(projected_poses[index][0])
             ax.set_xlim3d([center[0] - radius, center[0] + radius])
             ax.set_ylim3d([center[1] - radius, center[1] + radius])
             ax.set_zlim3d([center[2] - radius, center[2] + radius])
@@ -113,13 +131,13 @@ def render_animation(skeleton, poses_generator, algos, t_hist, fix_0=True, azim=
             lcol, mcol, rcol = pred_lcol, pred_mcol, pred_rcol
 
         for n, ax in enumerate(ax_3d):
+            # Freeze only the first subplot ('context') during prediction playback.
+            frame_for_axis = i
             if fix_0 and n == 0 and i >= t_hist:
-                continue
-            if fix_0 and n % ncol == 0 and i >= t_hist:
-                continue
+                frame_for_axis = t_hist - 1
             trajectories[n] = projected_poses[n][:, 0]
             if auto_axis:
-                center, radius = axis_params[n]
+                center, radius = axis_params_one_frame(projected_poses[n][frame_for_axis])
                 ax.set_xlim3d([center[0] - radius, center[0] + radius])
                 ax.set_ylim3d([center[1] - radius, center[1] + radius])
                 ax.set_zlim3d([center[2] - radius, center[2] + radius])
@@ -148,8 +166,6 @@ def render_animation(skeleton, poses_generator, algos, t_hist, fix_0=True, azim=
 
             for n, ax in enumerate(ax_3d):
                 if fix_0 and n == 0 and i >= t_hist:
-                    continue
-                if fix_0 and n % ncol == 0 and i >= t_hist:
                     continue
 
                 pos = projected_poses[n][i]
