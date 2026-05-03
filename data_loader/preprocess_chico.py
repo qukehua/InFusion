@@ -62,8 +62,9 @@ def load_chico_sequences(data_path, split_subjects, include_robot=True, exclude_
             else:
                 seq = human_seq
 
-            # Make relative to root.
+            # Root-relative + pelvis at origin (match DatasetCHICO).
             seq[:, 1:] -= seq[:, :1]
+            seq[:, :1, :] = 0
 
             all_sequences.append(seq)
             sequence_info.append(

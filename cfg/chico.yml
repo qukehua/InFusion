@@ -54,7 +54,7 @@ vis_candidate_k: 50
 # CHICO specific settings
 # Same as CHICO-PoseForecasting normal_actions: skip * _CRASH.pkl (collision segments).
 chico_exclude_crash: True
-include_robot: True
-use_robot_condition: True  
+include_robot: False
+use_robot_condition: False  
 predict_human_only: True
 data_path: '/data3/user/qkh/datasets/CHICO/datasets'

@@ -185,8 +185,12 @@ class DatasetCHICO(Dataset):
                     v = (np.diff(seq[:, :1], axis=0) * 50).clip(-5.0, 5.0)
                     v = np.append(v, v[[-1]], axis=0)
 
-                # Make all joints relative to root joint 0.
+                # Root-relative body: non-root human joints and robot become offsets from human pelvis (joint 0).
+                # This preserves inter-joint distances (bone lengths) in each frame; it does not by itself
+                # destroy kinematic structure—that comes from unconstrained diffusion outputs.
                 seq[:, 1:] -= seq[:, :1]
+                # Pelvis at origin every frame (remove global translation from the stored tensor).
+                seq[:, :1, :] = 0
 
                 if self.use_vel:
                     seq = np.concatenate((seq, v), axis=1)
