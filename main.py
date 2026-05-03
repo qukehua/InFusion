@@ -43,6 +43,12 @@ if __name__ == '__main__':
     parser.add_argument('--gamma', type=float, default=0.8)
     parser.add_argument('--save_model_interval', type=int, default=None)
     parser.add_argument('--ckpt', type=str, default='./checkpoints/h36m_ckpt.pt')
+    parser.add_argument(
+        '--resume',
+        type=str,
+        default=None,
+        help='train only: load weights from this checkpoint and continue training',
+    )
     parser.add_argument('--ema', type=bool, default=True)
     parser.add_argument('--vis_col', type=int, default=10)
     parser.add_argument('--vis_row', type=int, default=3)
@@ -118,6 +124,7 @@ if __name__ == '__main__':
         sum(p.numel() for p in list(model.parameters())) / 1000000.0))
 
     if args.mode == 'train':
+        start_epoch = args.iter if args.resume else 0
         trainer = Trainer(
             model=model,
             diffusion=diffusion,
@@ -125,7 +132,10 @@ if __name__ == '__main__':
             cfg=cfg,
             logger=logger,
             tb_logger=tb_logger,
-            wandb_logger=wandb_logger)
+            wandb_logger=wandb_logger,
+            resume_ckpt=args.resume,
+            start_epoch=start_epoch,
+        )
         trainer.loop()
         
         # Finish wandb run

@@ -44,7 +44,9 @@ class Trainer:
                  cfg,
                  logger,
                  tb_logger,
-                 wandb_logger=None):
+                 wandb_logger=None,
+                 resume_ckpt=None,
+                 start_epoch=0):
         super().__init__()
 
         self.generator_val = None
@@ -69,6 +71,7 @@ class Trainer:
         self.wandb_logger = wandb_logger
 
         self.iter = 0
+        self.start_epoch = max(0, int(start_epoch))
         self.lrs = []
         self.best_val_loss = float('inf')
 
@@ -79,6 +82,18 @@ class Trainer:
         else:
             self.ema_model = None
             self.ema_setup = None
+
+        if resume_ckpt:
+            sd = torch.load(resume_ckpt, map_location=self.cfg.device)
+            if self.cfg.ema is True:
+                self.ema_model.load_state_dict(sd)
+                self.model.load_state_dict(sd)
+                # Past EMA warm-up so step_ema updates the average instead of resetting.
+                self.ema.step = max(self.ema.step, 2000)
+            else:
+                self.model.load_state_dict(sd)
+            self.logger.info('Loaded weights from {} (resume from epoch {})'.format(
+                resume_ckpt, self.start_epoch))
 
     def compute_velocity_aux_loss(self, x_t, t, predicted_noise, traj):
         if getattr(self.cfg, 'velocity_loss_weight', 0.0) <= 0:
@@ -94,7 +109,11 @@ class Trainer:
     def loop(self):
         self.before_train()
         # Epoch progress bar
-        epoch_pbar = tqdm(range(0, self.cfg.num_epoch), desc="Training", unit="epoch")
+        epoch_pbar = tqdm(
+            range(self.start_epoch, self.cfg.num_epoch),
+            desc="Training",
+            unit="epoch",
+        )
         for self.iter in epoch_pbar:
             self.before_train_step()
             self.run_train_step()
@@ -117,8 +136,15 @@ class Trainer:
 
     def before_train(self):
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.cfg.lr)
-        self.lr_scheduler = optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=self.cfg.milestone,
-                                                           gamma=self.cfg.gamma)
+        # Align LR with completed epochs when resuming (avoids calling step() before any
+        # optimizer.step(), which triggers PyTorch's UserWarning).
+        sched_last = self.start_epoch - 1 if self.start_epoch > 0 else -1
+        self.lr_scheduler = optim.lr_scheduler.MultiStepLR(
+            self.optimizer,
+            milestones=self.cfg.milestone,
+            gamma=self.cfg.gamma,
+            last_epoch=sched_last,
+        )
         self.criterion = nn.MSELoss()
 
     def before_train_step(self):
