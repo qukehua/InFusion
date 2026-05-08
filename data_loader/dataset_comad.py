@@ -85,8 +85,31 @@ def _fit_or_select_joint_dim(arr, n_frames, target_joints, joint_indices=None, f
 def _entity_or_zeros_selected(seq_dict, key, n_frames, n_joints, joint_indices=None, fallback_indices=None):
     if key not in seq_dict:
         return np.zeros((n_frames, n_joints, 3), dtype=np.float32)
-    arr = np.asarray(seq_dict[key], dtype=np.float32)
-    return _fit_or_select_joint_dim(arr, n_frames, n_joints, joint_indices, fallback_indices)
+    # Some CoMad json files store ragged per-frame marker lists (variable marker
+    # count across frames), which cannot be converted by one-shot np.asarray.
+    # Parse frame-by-frame to stay robust.
+    seq_raw = seq_dict[key]
+    out = np.zeros((n_frames, n_joints, 3), dtype=np.float32)
+    usable_frames = min(n_frames, len(seq_raw))
+    indices = _parse_joint_indices(joint_indices)
+    fallback = _parse_joint_indices(fallback_indices)
+    for t in range(usable_frames):
+        try:
+            frame_arr = np.asarray(seq_raw[t], dtype=np.float32)
+        except Exception:
+            continue
+        if frame_arr.ndim != 2 or frame_arr.shape[-1] != 3:
+            continue
+        selected = frame_arr
+        if indices is not None and len(indices) > 0:
+            max_idx = max(indices)
+            if frame_arr.shape[0] > max_idx:
+                selected = frame_arr[indices]
+            elif fallback is not None and len(fallback) > 0 and frame_arr.shape[0] > max(fallback):
+                selected = frame_arr[fallback]
+        k = min(n_joints, selected.shape[0])
+        out[t, :k] = selected[:k]
+    return out
 
 
 class DatasetCoMad(Dataset):

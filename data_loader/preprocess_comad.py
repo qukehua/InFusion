@@ -300,7 +300,7 @@ def main():
     parser.add_argument("--t_his", type=int, default=15, help="History frames")
     parser.add_argument("--t_pred", type=int, default=15, help="Prediction frames")
     parser.add_argument("--skip_rate", type=int, default=20, help="Skip rate for extracting windows")
-    parser.add_argument("--thre_his", type=float, default=0.05, help="History similarity threshold")
+    parser.add_argument("--thre_his", type=float, default=0.025, help="History similarity threshold")
     parser.add_argument("--thre_pred", type=float, default=0.1, help="Future difference threshold")
     parser.add_argument("--include_person2", action="store_true", help="Include Person_2 joints")
     parser.add_argument("--include_robot", action="store_true", help="Include Robot joints")
