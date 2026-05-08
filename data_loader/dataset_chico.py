@@ -6,6 +6,9 @@ from data_loader.dataset import Dataset
 from data_loader.skeleton import Skeleton
 
 
+CHICO_COORD_SCALE = 1000.0  # CHICO stores coordinates in millimeters; train in meters.
+
+
 def load_pkl(pkl_file: str):
     with open(pkl_file, "rb") as f:
         data = pkl.load(f)
@@ -174,9 +177,9 @@ class DatasetCHICO(Dataset):
                 if len(sequence_list) == 0:
                     continue
 
-                human_seq = np.asarray([f[0] for f in sequence_list], dtype=np.float32)
+                human_seq = np.asarray([f[0] for f in sequence_list], dtype=np.float32) / CHICO_COORD_SCALE
                 if self.include_robot:
-                    robot_seq = np.asarray([f[1] for f in sequence_list], dtype=np.float32)
+                    robot_seq = np.asarray([f[1] for f in sequence_list], dtype=np.float32) / CHICO_COORD_SCALE
                     seq = np.concatenate([human_seq, robot_seq], axis=1)
                 else:
                     seq = human_seq

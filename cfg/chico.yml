@@ -13,7 +13,7 @@ num_val_data_sample: 5000
 lr: 3.e-4
 
 n_pre: 20
-multimodal_path: '/data3/user/qkh/datasets/CHICO/multimodal/t_his10_chico_human_only_thre120.000_t_pred25_thre200.000_filtered.npz'
+multimodal_path: '/data3/user/qkh/datasets/CHICO/multimodal/t_his10_chico_human_only_thre0.100_t_pred25_thre0.200_filtered.npz'
 data_candi_path: '/data3/user/qkh/datasets/CHICO/multimodal/data_candi_chico_human_only_t_his10_t_pred25_skiprate20.npz'
 padding: 'LastFrame'
 Complete: True
@@ -55,7 +55,7 @@ vis_candidate_k: 50
 # CHICO specific settings
 # Same as CHICO-PoseForecasting normal_actions: skip * _CRASH.pkl (collision segments).
 chico_exclude_crash: True
-include_robot: False
-use_robot_condition: False  
+include_robot: True
+use_robot_condition: True  
 predict_human_only: True
 data_path: '/data3/user/qkh/datasets/CHICO/datasets'

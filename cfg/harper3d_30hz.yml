@@ -24,7 +24,7 @@ ddim_timesteps: 100
 scheduler: 'Cosine'  # 'Cosine' 'Linear' 'Sqrt' 'Sigmoid' 'Logarithmic'
 model_variant: 'two_stage'  # 'default' or 'two_stage' 
 stage1_num_layers: 2  # Stage 1: Block 1-2, Stage 2: Block 3-9
-dit_attn_mode: 'self_attention'  # 'spatio_temporal' or 'self_attention'
+dit_attn_mode: 'spatio_temporal'  # 'spatio_temporal' or 'self_attention'
 num_layers: 9
 num_heads: 8
 latent_dims: 512

@@ -21,6 +21,7 @@ from tqdm import tqdm
 import torch
 
 
+CHICO_COORD_SCALE = 1000.0  # CHICO stores coordinates in millimeters; save multimodal data in meters.
 USE_CUDA = torch.cuda.is_available()
 DEVICE = torch.device("cuda" if USE_CUDA else "cpu")
 print(f"Using device: {DEVICE}")
@@ -55,9 +56,9 @@ def load_chico_sequences(data_path, split_subjects, include_robot=True, exclude_
             if len(sequence_list) == 0:
                 continue
 
-            human_seq = np.asarray([f[0] for f in sequence_list], dtype=np.float32)
+            human_seq = np.asarray([f[0] for f in sequence_list], dtype=np.float32) / CHICO_COORD_SCALE
             if include_robot:
-                robot_seq = np.asarray([f[1] for f in sequence_list], dtype=np.float32)
+                robot_seq = np.asarray([f[1] for f in sequence_list], dtype=np.float32) / CHICO_COORD_SCALE
                 seq = np.concatenate([human_seq, robot_seq], axis=1)
             else:
                 seq = human_seq
@@ -183,8 +184,8 @@ def main():
     parser.add_argument("--t_his", type=int, default=10, help="History frames")
     parser.add_argument("--t_pred", type=int, default=25, help="Prediction frames")
     parser.add_argument("--skip_rate", type=int, default=20, help="Skip rate for extracting windows")
-    parser.add_argument("--thre_his", type=float, default=120, help="History similarity threshold")
-    parser.add_argument("--thre_pred", type=float, default=200, help="Future difference threshold")
+    parser.add_argument("--thre_his", type=float, default=0.1, help="History similarity threshold in meters")
+    parser.add_argument("--thre_pred", type=float, default=0.2, help="Future difference threshold in meters")
     parser.add_argument("--include_robot", action="store_true", help="Include robot/tool joints")
     parser.add_argument(
         "--val_subjects",
