@@ -39,6 +39,8 @@ def _attach_robot_joints_for_vis(pred_human, gt_full, cfg):
     For human-only prediction, append GT robot / Spot joints so pred panels draw the
     full scene (human forecast + known robot) like context/gt.
     """
+    if getattr(cfg, 'vis_output_only', False):
+        return pred_human
     if not getattr(cfg, 'predict_human_only', False):
         return pred_human
     if gt_full.shape[1] <= cfg.output_total_joints:
@@ -61,6 +63,12 @@ def _attach_robot_joints_for_vis(pred_human, gt_full, cfg):
     robot_gt = np.expand_dims(robot_gt, axis=0)
     robot_gt = np.repeat(robot_gt, pred_human.shape[0], axis=0)
     return np.concatenate([pred_human, robot_gt], axis=2)
+
+
+def _pose_for_visualization(pose, cfg):
+    if getattr(cfg, 'vis_output_only', False):
+        return pose[..., :cfg.output_total_joints, :].copy()
+    return pose
 
 
 def pose_generator(data_set, model_select, diffusion, cfg, mode=None,
@@ -93,14 +101,15 @@ def pose_generator(data_set, model_select, diffusion, cfg, mode=None,
             gt = data[0].copy()
             gt[:, :1, :] = 0
             data[:, :, :1, :] = 0
+            vis_gt = _pose_for_visualization(gt, cfg)
 
             if mode == 'pred':
                 if draw_order_indicator == -1:
-                    poses['context'] = gt
-                    poses['gt'] = gt
+                    poses['context'] = vis_gt
+                    poses['gt'] = vis_gt
                 else:
-                    poses[f'TransFusion_{draw_order_indicator + 1}'] = gt
-                    poses[f'TransFusion_{draw_order_indicator + 2}'] = gt
+                    poses[f'TransFusion_{draw_order_indicator + 1}'] = vis_gt
+                    poses[f'TransFusion_{draw_order_indicator + 2}'] = vis_gt
                 gt = np.expand_dims(gt, axis=0)
                 traj_np, traj_cond_np = split_motion_inputs(gt, cfg)
 

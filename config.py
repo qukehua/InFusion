@@ -129,6 +129,7 @@ class Config:
         self.vis_sample_strategy = cfg.get('vis_sample_strategy', 'random')
         self.vis_candidate_k = cfg.get('vis_candidate_k', 10)
         self.vis_skip_attach_robot = cfg.get('vis_skip_attach_robot', False)
+        self.vis_output_only = cfg.get('vis_output_only', False)
         self.use_velocity_input = cfg.get('use_velocity_input', False)
         self.velocity_loss_weight = cfg.get('velocity_loss_weight', 0.0)
 

@@ -52,6 +52,7 @@ vis_line_width: 1.5
 vis_title_fontsize: 16
 vis_sample_strategy: 'random'
 vis_candidate_k: 50
+vis_output_only: True
 
 # CHICO specific settings
 # Same as CHICO-PoseForecasting normal_actions: skip * _CRASH.pkl (collision segments).
