@@ -222,6 +222,9 @@ class Config:
             # Pred GIF: apply InteRACT comad_hr.py Motive coordinate fix (-x, z, y). HR scenes match paper;
             # set false if HH-only viz looks better in raw Motive axes.
             self.comad_motive_to_interact_axes = cfg.get("comad_motive_to_interact_axes", False)
+            # CoMaD official loaders forecast compact marker sets rather than all 25 markers:
+            # HR -> [0,1,2,3,4,5,6,9,10], HH -> upper-body arm markers.
+            self.comad_vis_joint_set = cfg.get("comad_vis_joint_set", "auto")
         elif self.dataset == '3dpw':
             # 3DPW: two persons, each 24 SMPL joints (total 48).
             self.total_joint_num = 48

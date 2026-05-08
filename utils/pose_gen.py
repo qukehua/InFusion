@@ -1,7 +1,10 @@
 from torch import tensor
 from utils import *
 from utils.script import sample_preprocessing
-from data_loader.comad_kinematics import comad_fix_orientation_motive_to_interact
+from data_loader.comad_kinematics import (
+    comad_fix_orientation_motive_to_interact,
+    comad_visual_joint_indices,
+)
 
 
 def _select_visual_samples(traj_est, cfg):
@@ -70,6 +73,8 @@ def _attach_robot_joints_for_vis(pred_human, gt_full, cfg):
 
 def _pose_for_visualization(pose, cfg):
     if getattr(cfg, 'vis_output_only', False):
+        if getattr(cfg, 'dataset', None) == 'comad':
+            return pose[..., comad_visual_joint_indices(cfg), :].copy()
         return pose[..., :cfg.output_total_joints, :].copy()
     return pose
 
@@ -134,6 +139,7 @@ def pose_generator(data_set, model_select, diffusion, cfg, mode=None,
             traj_est = reconstruct_from_velocity(traj_est, gt, cfg)
             traj_est = traj_est.cpu().numpy()
             traj_est = post_process(traj_est, cfg)
+            traj_est = _pose_for_visualization(traj_est, cfg)
             traj_est = _attach_robot_joints_for_vis(traj_est, gt[0], cfg)
             if getattr(cfg, "dataset", None) == "comad" and getattr(
                 cfg, "comad_motive_to_interact_axes", False
