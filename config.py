@@ -126,6 +126,7 @@ class Config:
         self.vis_axis_padding = cfg.get('vis_axis_padding', 0.2)
         self.vis_line_width = cfg.get('vis_line_width', 2.0)
         self.vis_title_fontsize = cfg.get('vis_title_fontsize', 18)
+        self.vis_camera_dist = cfg.get('vis_camera_dist', 5.0)
         self.vis_sample_strategy = cfg.get('vis_sample_strategy', 'random')
         self.vis_candidate_k = cfg.get('vis_candidate_k', 10)
         self.vis_skip_attach_robot = cfg.get('vis_skip_attach_robot', False)

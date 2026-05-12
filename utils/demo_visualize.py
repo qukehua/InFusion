@@ -24,7 +24,8 @@ def demo_visualize(mode, cfg, model, diffusion, dataset):
             vis_axis_padding = getattr(cfg, 'vis_axis_padding', 0.2)
             vis_line_width = getattr(cfg, 'vis_line_width', 2.0)
             vis_title_fontsize = getattr(cfg, 'vis_title_fontsize', 18)
-            coord_order = (0, 2, 1) if cfg.dataset == 'harper3d' else (0, 1, 2)
+            vis_camera_dist = getattr(cfg, 'vis_camera_dist', 5.0)
+            coord_order = (0, 2, 1) if cfg.dataset in ('harper3d', '3dpw') else (0, 1, 2)
             # CHICO-only: restrict axis bbox to human joints when drawing human+robot (KUKA span).
             axis_bbox_num_joints = None
             if getattr(cfg, 'predict_human_only', False) and cfg.dataset in ('chico', 'comad'):
@@ -41,6 +42,7 @@ def demo_visualize(mode, cfg, model, diffusion, dataset):
                              size=vis_size, dpi=vis_dpi, coord_order=coord_order,
                              auto_axis=vis_auto_axis, axis_padding=vis_axis_padding,
                              line_width=vis_line_width, title_fontsize=vis_title_fontsize,
+                             camera_dist=vis_camera_dist,
                              axis_bbox_num_joints=axis_bbox_num_joints,
                              use_legacy_visualization=use_legacy_visualization)
 

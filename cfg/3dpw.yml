@@ -13,8 +13,8 @@ lr: 1.e-4
 gamma: 0.7
 
 n_pre: 20
-multimodal_path: null
-data_candi_path: null
+multimodal_path: '/data/user/qkh/datasets/3DPW/multimodal/t_his25_3dpw_test_downtown_2p_thre0.250_t_pred100_thre0.250_filtered.npz'
+data_candi_path: '/data/user/qkh/datasets/3DPW/multimodal/data_candi_3dpw_test_downtown_2p_t_his25_t_pred100_skiprate20.npz'
 padding: 'LastFrame'
 Complete: True
 noise_steps: 1000
@@ -33,27 +33,30 @@ mod_train: 1.0
 mod_test: 1.0
 dct_norm_enable: False
 disable_tensorboard: True
-use_data_aug: True
+use_data_aug: False
 aug_rotate_prob: 0.5
 aug_reverse_prob: 0.2
 use_velocity_input: False
 velocity_loss_weight: 0.0
 
 # visualization settings
-vis_azim: 0.0
-vis_elev: 15.0
+vis_azim: -90.0
+vis_elev: 5.0
 vis_axis_radius: 2.5
-vis_size: 3.0
+vis_size: 3.8
 vis_dpi: 80
 vis_auto_axis: True
-vis_axis_padding: 0.25
+vis_axis_padding: 0.8
 vis_line_width: 1.5
 vis_title_fontsize: 16
+vis_camera_dist: 8.0
+vis_sample_strategy: 'median'
+vis_candidate_k: 50
 
-# 3DPW single-scene + two-person setup.
-# train split uses only courtyard (all valid clips are 2-person).
+# 3DPW setup.
+# train split uses all scenes when scene_filter_train is null.
 # test split uses only downtown (2-person clips only).
-scene_filter_train: 'courtyard'
+scene_filter_train: null
 scene_filter_test: 'downtown'
 require_two_person: True
 

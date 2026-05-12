@@ -14,7 +14,7 @@ def render_animation(skeleton, poses_generator, algos, t_hist, fix_0=True, azim=
                      elev=15.0, axis_radius=1.5, output=None, mode='pred',
                      size=2, ncol=5, bitrate=3000, dpi=80, coord_order=(0, 1, 2),
                      auto_axis=True, axis_padding=0.2, line_width=2.0,
-                     title_fontsize=18, axis_bbox_num_joints=None,
+                     title_fontsize=18, camera_dist=5.0, axis_bbox_num_joints=None,
                      use_legacy_visualization=False):
     """
     TODO
@@ -96,7 +96,7 @@ def render_animation(skeleton, poses_generator, algos, t_hist, fix_0=True, azim=
         ax.set_xticklabels([])
         ax.set_yticklabels([])
         ax.set_zticklabels([])
-        ax.dist = 5.0
+        ax.dist = camera_dist
         if index == 0 or index == 1:
             ax.set_title(title, y=1.0, fontsize=title_fontsize)
         elif index > 1 and index <= 11:

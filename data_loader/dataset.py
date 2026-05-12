@@ -89,6 +89,18 @@ class Dataset:
 
         sample = np.concatenate(sample, axis=0)
         return sample
+
+    @staticmethod
+    def _parse_3dpw_action_key(scene_name, action_key):
+        """Convert a 3DPW sequence stem like downtown_arguing_00 to arguing."""
+        action = action_key
+        scene_prefix = f"{scene_name}_"
+        if action.startswith(scene_prefix):
+            action = action[len(scene_prefix):]
+        base, sep, suffix = action.rpartition("_")
+        if sep and suffix.isdigit():
+            action = base
+        return action
     
     def sample_iter_action(self, action_category, dataset_type):
         if dataset_type == 'harper3d':
@@ -142,6 +154,23 @@ class Dataset:
             fr_end = fr_start + self.t_total
             traj = seq[fr_start:fr_end]
             return traj[None, ...]
+        elif dataset_type == "3dpw":
+            # self.data[scene][sequence_stem], e.g. downtown_arguing_00.
+            candidate = []
+            for scene_name, dict_s_sub in self.data.items():
+                for action_key, seq in dict_s_sub.items():
+                    action = self._parse_3dpw_action_key(scene_name, action_key)
+                    if action == action_category and seq.shape[0] > self.t_total:
+                        candidate.append(seq)
+            if len(candidate) == 0:
+                raise ValueError(
+                    f"No 3DPW sequence found for action '{action_category}' with length > t_total ({self.t_total})."
+                )
+            seq = candidate[np.random.randint(len(candidate))]
+            fr_start = np.random.randint(seq.shape[0] - self.t_total)
+            fr_end = fr_start + self.t_total
+            traj = seq[fr_start:fr_end]
+            return traj[None, ...]
         else:
             raise ValueError(f"Unsupported dataset_type '{dataset_type}' in sample_iter_action.")
 
@@ -175,6 +204,13 @@ class Dataset:
                         parts = action_key.split("_")
                         task = parts[0] if parts else action_key
                     action_list.append(task)
+            return sorted(list(set(action_list)))
+        elif dataset_type == "3dpw":
+            # List unique action categories across scene-specific sequence stems.
+            action_list = []
+            for scene_name, dict_s_sub in self.data.items():
+                for action_key in dict_s_sub.keys():
+                    action_list.append(self._parse_3dpw_action_key(scene_name, action_key))
             return sorted(list(set(action_list)))
         else:
             raise ValueError(f"Unsupported dataset_type '{dataset_type}' in prepare_iter_action.")
